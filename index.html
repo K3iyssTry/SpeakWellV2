@@ -1,0 +1,2567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Permissions-Policy" content="microphone=*">
+<title>SpeakWell — English Speaking Practice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&family=Lora:ital,wght@0,500;0,600;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<!--
+╔══════════════════════════════════════════════════════════════╗
+║                   SPEAKWELL — TEACHER SETUP                  ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  OPTION A — PRE-EMBED YOUR API KEY (Recommended for class)   ║
+║  Replace the empty string below with your Cerebras API key:  ║
+║                                                              ║
+║    const TEACHER_API_KEY = "csk-...";                       ║
+║                                                              ║
+║  OPTION B — Students enter the key themselves                ║
+║  Leave TEACHER_API_KEY = "" and students will be prompted.   ║
+║                                                              ║
+║  GOOGLE SHEETS — TO SAVE STUDENT SCORES:                     ║
+║  1. Follow the setup steps in the README or instructions     ║
+║  2. Paste your Apps Script Web App URL into SHEET_URL below  ║
+║     e.g. const SHEET_URL = "https://script.google.com/..."; ║
+║  3. Leave SHEET_URL = "" to disable score saving             ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+-->
+
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --green:#2D7D32;--green-l:#43A047;--green-xl:#66BB6A;
+    --green-bg:#E8F5E9;--green-bg2:#C8E6C9;
+    --amber:#E65100;--amber-l:#F57C00;--amber-bg:#FFF3E0;--amber-bg2:#FFE0B2;
+    --gray-50:#FAFAF8;--gray-100:#F3F2EE;--gray-200:#E8E7E2;
+    --gray-400:#9E9D96;--gray-600:#5D5C57;--gray-800:#2C2C2A;
+    --red:#C62828;--red-bg:#FFEBEE;
+    --shadow-sm:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
+    --shadow:0 4px 12px rgba(0,0,0,.08),0 1px 4px rgba(0,0,0,.05);
+    --shadow-lg:0 8px 24px rgba(0,0,0,.1),0 2px 8px rgba(0,0,0,.06);
+    --radius:10px;--radius-lg:14px;--radius-xl:18px;
+    --font-body:'Nunito',sans-serif;
+    --font-display:'Lora',Georgia,serif;
+  }
+  html,body{height:100%;font-family:var(--font-body);background:var(--gray-100);color:var(--gray-800)}
+
+  /* ── SETUP SCREEN ── */
+  #setup-screen{
+    display:flex;align-items:center;justify-content:center;
+    min-height:100vh;padding:2rem;background:var(--gray-100);
+  }
+  .setup-card{
+    background:#fff;border-radius:var(--radius-xl);
+    box-shadow:var(--shadow-lg);padding:2.5rem;
+    max-width:440px;width:100%;text-align:center;
+  }
+  .setup-logo{
+    font-family:var(--font-display);font-size:28px;color:var(--green);
+    margin-bottom:.4rem;
+  }
+  .setup-tagline{font-size:14px;color:var(--gray-400);margin-bottom:2rem}
+  .setup-label{
+    display:block;font-size:13px;font-weight:600;color:var(--gray-600);
+    text-align:left;margin-bottom:6px;
+  }
+  .setup-input{
+    width:100%;padding:11px 14px;border-radius:var(--radius);
+    border:1.5px solid var(--gray-200);font-family:var(--font-body);
+    font-size:14px;color:var(--gray-800);margin-bottom:1rem;
+    transition:border-color .15s;outline:none;
+  }
+  .setup-input:focus{border-color:var(--green)}
+  .setup-tip{
+    font-size:12px;color:var(--gray-400);text-align:left;
+    margin-top:-8px;margin-bottom:1rem;line-height:1.5;
+  }
+  .btn-start{
+    width:100%;padding:13px;border-radius:var(--radius);
+    background:var(--green);color:#fff;font-family:var(--font-body);
+    font-size:15px;font-weight:700;border:none;cursor:pointer;
+    transition:background .15s;
+  }
+  .btn-start:hover{background:var(--green-l)}
+  .key-link{font-size:12px;color:var(--gray-400);margin-top:1rem;display:block}
+  .key-link a{color:var(--green);text-decoration:none}
+
+  /* ── MAIN APP ── */
+  #app{display:none;flex-direction:column;min-height:100vh}
+
+  /* Header */
+  .app-header{
+    background:#fff;border-bottom:1px solid var(--gray-200);
+    padding:0 1.5rem;position:sticky;top:0;z-index:100;
+  }
+  .header-top{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:.9rem 0 .6rem;
+  }
+  .logo{font-family:var(--font-display);font-size:22px;color:var(--green);font-weight:600}
+  .student-badge{
+    display:flex;align-items:center;gap:8px;
+    background:var(--green-bg);border-radius:100px;
+    padding:6px 14px;font-size:13px;font-weight:600;color:var(--green);
+    cursor:pointer;
+  }
+  .student-badge span{font-size:16px}
+  .level-row{
+    display:flex;align-items:center;gap:10px;
+    padding-bottom:.8rem;flex-wrap:wrap;
+  }
+  .level-lbl{font-size:12px;font-weight:600;color:var(--gray-400)}
+  .pills{display:flex;gap:5px;flex-wrap:wrap}
+  .pill{
+    padding:5px 14px;border-radius:100px;font-size:12px;font-weight:700;
+    border:1.5px solid var(--gray-200);background:#fff;color:var(--gray-600);
+    cursor:pointer;transition:all .15s;
+  }
+  .pill:hover{border-color:var(--green-xl);color:var(--green)}
+  .pill.on{background:var(--green);border-color:var(--green);color:#fff}
+  .level-chip{
+    margin-left:auto;font-size:11px;font-weight:700;
+    background:var(--amber-bg);color:var(--amber);
+    border-radius:100px;padding:4px 12px;letter-spacing:.3px;
+  }
+
+  /* Tab Nav */
+  .tab-nav{
+    background:#fff;border-bottom:1px solid var(--gray-200);
+    display:flex;padding:0 1.5rem;
+  }
+  .tab{
+    padding:13px 18px;font-size:13px;font-weight:700;
+    color:var(--gray-400);border:none;background:transparent;
+    border-bottom:3px solid transparent;cursor:pointer;
+    transition:all .15s;margin-bottom:-1px;
+  }
+  .tab:hover{color:var(--gray-800)}
+  .tab.on{color:var(--green);border-bottom-color:var(--green)}
+
+  /* Main content */
+  .main{flex:1;padding:1.5rem;max-width:900px;margin:0 auto;width:100%}
+  .pane{display:none}.pane.on{display:block}
+
+  .sec-intro{
+    font-size:14px;color:var(--gray-600);margin-bottom:1.2rem;
+    line-height:1.7;
+  }
+
+  /* Scenario grid */
+  .sc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:1.2rem}
+  .sc-card{
+    background:#fff;border-radius:var(--radius-lg);
+    box-shadow:var(--shadow-sm);padding:1.1rem;
+    cursor:pointer;transition:all .18s;border:2px solid transparent;
+  }
+  .sc-card:hover{box-shadow:var(--shadow);border-color:var(--green-bg2);transform:translateY(-1px)}
+  .sc-ico{font-size:28px;margin-bottom:9px}
+  .sc-title{font-size:14px;font-weight:700;color:var(--gray-800);margin-bottom:4px}
+  .sc-hint{font-size:12px;color:var(--gray-400);line-height:1.5}
+  .sc-diff{
+    display:inline-block;font-size:10px;font-weight:700;
+    padding:2px 8px;border-radius:100px;margin-top:8px;letter-spacing:.4px;
+  }
+
+  /* Session */
+  .session-back{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:13px;font-weight:600;color:var(--gray-400);
+    background:none;border:none;cursor:pointer;padding:0;margin-bottom:1rem;
+    transition:color .15s;
+  }
+  .session-back:hover{color:var(--gray-800)}
+  .session-title{
+    font-family:var(--font-display);font-size:20px;color:var(--gray-800);
+    margin-bottom:1.2rem;font-weight:600;
+  }
+
+  .rec-area{
+    background:#fff;border-radius:var(--radius-xl);
+    box-shadow:var(--shadow);padding:1.5rem;margin-bottom:1rem;
+  }
+  .field-group{margin-bottom:1.1rem}
+  .field-lbl{
+    font-size:10px;font-weight:700;color:var(--gray-400);
+    text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;
+  }
+  .field-val{font-size:14px;color:var(--gray-800);line-height:1.7}
+  .goal-tag{
+    display:inline-flex;align-items:center;gap:5px;
+    background:var(--green-bg);color:var(--green);
+    font-size:12px;font-weight:600;padding:5px 12px;
+    border-radius:100px;margin-top:5px;
+  }
+
+  .divider{border-top:1px solid var(--gray-200);padding-top:1.2rem;margin-top:.5rem}
+
+  textarea.ta{
+    width:100%;min-height:120px;padding:13px;
+    border:1.5px solid var(--gray-200);border-radius:var(--radius);
+    font-family:var(--font-body);font-size:14px;color:var(--gray-800);
+    resize:vertical;line-height:1.7;margin-top:7px;margin-bottom:.9rem;
+    transition:border-color .15s;outline:none;
+  }
+  textarea.ta:focus{border-color:var(--green)}
+
+  .ctrl-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .btn-mic{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:10px 18px;border-radius:var(--radius);
+    font-family:var(--font-body);font-size:13px;font-weight:700;
+    border:1.5px solid var(--gray-200);background:#fff;color:var(--gray-600);
+    cursor:pointer;transition:all .15s;
+  }
+  .btn-mic:hover{border-color:var(--gray-400);color:var(--gray-800)}
+  .btn-mic.live{
+    background:var(--red-bg);border-color:#EF9A9A;color:var(--red);
+    animation:mic-pulse 2s infinite;
+  }
+  @keyframes mic-pulse{0%,100%{box-shadow:0 0 0 0 rgba(198,40,40,.1)}50%{box-shadow:0 0 0 6px rgba(198,40,40,.05)}}
+  .rdot{width:8px;height:8px;border-radius:50%;background:var(--red);animation:blink 1s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+
+  /* ── LIVE AUDIO ANALYSIS PANEL ── */
+  .live-panel{
+    display:none;background:#fff;border-radius:var(--radius-lg);
+    border:1.5px solid var(--green-bg2);box-shadow:var(--shadow);
+    padding:1.2rem;margin-top:1rem;animation:fadeInUp .3s ease;
+  }
+  .live-panel.on{display:block}
+  @keyframes fadeInUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .lp-header{
+    display:flex;align-items:center;gap:8px;margin-bottom:1rem;
+    font-size:12px;font-weight:700;color:var(--green);
+    text-transform:uppercase;letter-spacing:.6px;
+  }
+  .lp-rdot{width:8px;height:8px;border-radius:50%;background:var(--red);animation:blink 1s infinite;flex-shrink:0}
+  .lp-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1rem}
+  .lp-stat{
+    background:var(--gray-50);border-radius:var(--radius);
+    padding:.65rem .5rem;text-align:center;border:1px solid var(--gray-200);
+  }
+  .lp-stat-val{font-size:18px;font-weight:700;color:var(--gray-800);line-height:1}
+  .lp-stat-lbl{font-size:10px;color:var(--gray-400);font-weight:600;margin-top:4px;
+    text-transform:uppercase;letter-spacing:.4px}
+  .lp-waveform{
+    height:52px;background:var(--gray-50);border-radius:var(--radius);
+    border:1px solid var(--gray-200);position:relative;overflow:hidden;
+    margin-bottom:.9rem;
+  }
+  .lp-wave-bar{
+    position:absolute;bottom:50%;border-radius:2px;
+    background:var(--green-xl);transform:translateY(50%);
+  }
+  .lp-section-lbl{font-size:11px;font-weight:700;color:var(--gray-400);
+    text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+  .lp-pitch-bar{
+    height:10px;background:var(--gray-200);border-radius:100px;
+    position:relative;margin-bottom:4px;
+  }
+  .lp-pitch-track{
+    height:100%;border-radius:100px;
+    background:linear-gradient(90deg,var(--green-bg2),var(--green),var(--amber-l));
+    width:100%;
+  }
+  .lp-pitch-marker{
+    position:absolute;top:50%;transform:translate(-50%,-50%);
+    width:16px;height:16px;background:#fff;border:2.5px solid var(--green);
+    border-radius:50%;box-shadow:var(--shadow-sm);transition:left .15s ease;
+  }
+  .lp-pitch-val{font-size:12px;color:var(--gray-400);margin-bottom:.9rem;margin-top:4px}
+  .lp-fillers{display:flex;flex-wrap:wrap;gap:5px;min-height:22px;margin-bottom:.9rem}
+  .lp-filler-tag{
+    background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bg2);
+    font-size:11px;font-weight:700;padding:2px 10px;border-radius:100px;
+    animation:popIn .2s ease;
+  }
+  .lp-filler-dim{
+    background:var(--gray-100);color:var(--gray-400);border:1px solid var(--gray-200);
+    font-size:11px;font-weight:600;padding:2px 10px;border-radius:100px;
+  }
+  @keyframes popIn{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
+  .lp-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+  .lp-chart-wrap{height:90px;position:relative}
+  .lp-summary{
+    display:none;background:var(--green-bg);border:1.5px solid var(--green-bg2);
+    border-radius:var(--radius);padding:.9rem 1rem;margin-top:.8rem;
+    font-size:13px;color:var(--green);line-height:1.8;
+  }
+  .lp-summary.on{display:block}
+
+  .btn-eval{
+    padding:11px 24px;border-radius:var(--radius);
+    font-family:var(--font-body);font-size:14px;font-weight:700;
+    background:var(--green);color:#fff;border:none;cursor:pointer;
+    transition:all .15s;box-shadow:0 2px 8px rgba(45,125,50,.3);
+  }
+  .btn-eval:hover{background:var(--green-l);transform:translateY(-1px);box-shadow:0 4px 12px rgba(45,125,50,.35)}
+  .btn-eval:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+
+  .st-msg{font-size:12px;color:var(--gray-400);font-weight:500}
+
+  /* Topics */
+  .tp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-bottom:1.2rem}
+  .tp-card{
+    background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);
+    padding:1rem;cursor:pointer;transition:all .15s;border:2px solid transparent;
+    font-size:13px;font-weight:700;color:var(--gray-700);
+  }
+  .tp-card:hover{box-shadow:var(--shadow);border-color:var(--green-bg2)}
+  .tp-card.on{border-color:var(--green);background:var(--green-bg)}
+  .tp-emo{font-size:22px;margin-bottom:7px;display:block}
+
+  .tips-box{
+    background:var(--gray-50);border-radius:var(--radius);
+    border:1px solid var(--gray-200);padding:1rem;margin-bottom:1rem;
+  }
+
+  /* Evaluation */
+  .eval-wrap{
+    background:#fff;border-radius:var(--radius-xl);
+    box-shadow:var(--shadow-lg);padding:1.5rem;margin-top:1rem;
+  }
+  .eval-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.3rem}
+  .eval-title{font-family:var(--font-display);font-size:18px;font-weight:600;color:var(--gray-800)}
+  .overall-badge{
+    display:flex;align-items:baseline;gap:3px;
+    padding:8px 18px;border-radius:100px;font-weight:700;
+  }
+  .overall-num{font-size:22px}
+  .overall-den{font-size:13px;opacity:.6}
+
+  .sc-scores{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.3rem}
+  .sc-score-card{
+    background:var(--gray-50);border-radius:var(--radius);
+    padding:12px;text-align:center;border:1px solid var(--gray-200);
+  }
+  .sc-s-lbl{font-size:11px;font-weight:700;color:var(--gray-400);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+  .sc-s-num{font-size:24px;font-weight:700}
+  .sc-s-bar{height:4px;background:var(--gray-200);border-radius:2px;margin-top:6px;overflow:hidden}
+  .sc-s-fill{height:100%;border-radius:2px;transition:width .6s ease}
+
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.1rem}
+  .ev-section-lbl{
+    font-size:11px;font-weight:700;color:var(--gray-400);
+    text-transform:uppercase;letter-spacing:.6px;margin-bottom:9px;
+  }
+  .ev-li{
+    display:flex;align-items:flex-start;gap:8px;
+    font-size:13px;color:var(--gray-800);margin-bottom:7px;line-height:1.5;
+  }
+  .ev-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:4px}
+
+  .corr-box{
+    background:var(--amber-bg);border-radius:var(--radius);
+    border:1px solid var(--amber-bg2);padding:1rem;margin-bottom:1rem;
+  }
+  .corr-lbl{font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+  .corr-txt{font-size:13px;color:var(--amber);line-height:1.6;margin-bottom:4px}
+
+  .goal-box{
+    background:var(--green-bg);border-radius:var(--radius);
+    border:1px solid var(--green-bg2);padding:1rem;margin-bottom:1rem;
+  }
+  .goal-lbl{font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px}
+  .goal-txt{font-size:14px;color:var(--green);font-weight:600;line-height:1.5}
+
+  .enc-txt{
+    font-family:var(--font-display);font-style:italic;
+    font-size:15px;color:var(--gray-600);margin-bottom:1.2rem;
+    line-height:1.6;
+  }
+  .eval-actions{border-top:1px solid var(--gray-200);padding-top:1rem;display:flex;gap:10px}
+  .btn-sec{
+    padding:9px 18px;border-radius:var(--radius);
+    font-family:var(--font-body);font-size:13px;font-weight:700;
+    border:1.5px solid var(--gray-200);background:#fff;color:var(--gray-600);cursor:pointer;
+    transition:all .15s;
+  }
+  .btn-sec:hover{border-color:var(--gray-400);color:var(--gray-800)}
+  .btn-pri{
+    padding:9px 18px;border-radius:var(--radius);
+    font-family:var(--font-body);font-size:13px;font-weight:700;
+    background:var(--green);color:#fff;border:none;cursor:pointer;
+    transition:background .15s;
+  }
+  .btn-pri:hover{background:var(--green-l)}
+
+  /* Loading */
+  .ld{display:flex;align-items:center;gap:9px;padding:1.5rem 0;color:var(--gray-400);font-size:14px;font-weight:600}
+  .ld-dots{display:flex;gap:5px}
+  .ld-dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:bounce 1.4s infinite}
+  .ld-dot:nth-child(2){animation-delay:.2s}
+  .ld-dot:nth-child(3){animation-delay:.4s}
+  @keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-8px)}}
+
+  /* Progress */
+  .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:1.5rem}
+  .stat-card{
+    background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);
+    padding:1.2rem;text-align:center;
+  }
+  .stat-num{font-size:32px;font-weight:700;color:var(--green)}
+  .stat-lbl{font-size:12px;font-weight:600;color:var(--gray-400);margin-top:2px}
+
+  .ach-section{margin-bottom:1.5rem}
+  .section-hd{font-family:var(--font-display);font-size:17px;font-weight:600;color:var(--gray-800);margin-bottom:12px}
+  .ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .ach-card{
+    background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);
+    padding:1rem;text-align:center;border:2px solid transparent;transition:all .2s;
+  }
+  .ach-card.lit{border-color:var(--amber-bg2);background:var(--amber-bg)}
+  .ach-ico{font-size:28px;margin-bottom:7px;transition:opacity .2s}
+  .ach-name{font-size:12px;font-weight:700;color:var(--gray-800);margin-bottom:3px}
+  .ach-desc{font-size:11px;color:var(--gray-400);line-height:1.4}
+  .ach-badge{font-size:10px;font-weight:700;color:var(--amber);margin-top:5px;letter-spacing:.4px}
+  .dimmed{opacity:.25;filter:grayscale(1)}
+
+  .hist-section{margin-bottom:1.5rem}
+  .hist-item{
+    display:flex;align-items:center;gap:13px;padding:12px 0;
+    border-bottom:1px solid var(--gray-200);
+  }
+  .hist-item:last-child{border-bottom:none}
+  .hist-ico{
+    width:40px;height:40px;border-radius:var(--radius);
+    background:var(--green-bg);display:flex;align-items:center;
+    justify-content:center;font-size:18px;flex-shrink:0;
+  }
+  .hist-info{flex:1}
+  .hist-name{font-size:14px;font-weight:700;color:var(--gray-800)}
+  .hist-meta{font-size:11px;color:var(--gray-400);margin-top:2px}
+  .hist-score{font-size:16px;font-weight:700}
+
+  .no-hist{
+    text-align:center;padding:2.5rem;
+    color:var(--gray-400);font-size:14px;line-height:1.7;
+  }
+  .no-hist-ico{font-size:40px;margin-bottom:10px;opacity:.5}
+
+  /* Responsive */
+  @media(max-width:600px){
+    .sc-scores{grid-template-columns:repeat(2,1fr)}
+    .two-col{grid-template-columns:1fr}
+    .stats-row{grid-template-columns:repeat(3,1fr)}
+    .main{padding:1rem}
+    .rec-area{padding:1.1rem}
+    .eval-wrap{padding:1.1rem}
+    .tab{padding:13px 12px;font-size:12px}
+  }
+
+  /* Settings modal */
+  .modal-bg{
+    display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);
+    z-index:1000;align-items:center;justify-content:center;padding:1.5rem;
+  }
+  .modal-bg.on{display:flex}
+  .modal{background:#fff;border-radius:var(--radius-xl);padding:1.8rem;max-width:380px;width:100%;box-shadow:var(--shadow-lg)}
+  .modal-title{font-family:var(--font-display);font-size:18px;font-weight:600;margin-bottom:1.2rem}
+  .modal-actions{display:flex;gap:10px;margin-top:1.5rem}
+
+  /* Char counter */
+  .char-count{font-size:11px;color:var(--gray-400);text-align:right;margin-top:-6px;margin-bottom:8px}
+
+  /* ── EVAL TABS ── */
+  .eval-tabs{display:flex;gap:4px;margin-bottom:1.4rem;background:var(--gray-100);border-radius:var(--radius);padding:4px}
+  .eval-tab{
+    flex:1;padding:9px 6px;border-radius:8px;font-size:12px;font-weight:700;
+    border:none;background:transparent;cursor:pointer;color:var(--gray-400);
+    transition:all .15s;text-align:center;line-height:1.3;
+  }
+  .eval-tab:hover{color:var(--gray-800)}
+  .eval-tab.on{background:#fff;color:var(--gray-800);box-shadow:var(--shadow-sm)}
+  .eval-tab-pane{display:none}.eval-tab-pane.on{display:block}
+
+  /* ── SKILL HEADER ── */
+  .skill-header{
+    display:flex;align-items:center;gap:14px;
+    background:var(--gray-50);border:1px solid var(--gray-200);
+    border-radius:var(--radius-lg);padding:1rem 1.2rem;margin-bottom:1.2rem;
+  }
+  .skill-score-circle{
+    width:56px;height:56px;border-radius:50%;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-weight:700;flex-shrink:0;border:3px solid;
+  }
+  .skill-score-circle .ssc-num{font-size:20px;line-height:1}
+  .skill-score-circle .ssc-den{font-size:10px;opacity:.6;line-height:1.4}
+  .skill-header-info{flex:1}
+  .skill-header-label{font-size:13px;font-weight:700;color:var(--gray-800);margin-bottom:3px}
+  .skill-header-desc{font-size:12px;color:var(--gray-400);line-height:1.5}
+  .skill-bar-wrap{margin-top:8px;height:6px;background:var(--gray-200);border-radius:3px;overflow:hidden}
+  .skill-bar-fill{height:100%;border-radius:3px;transition:width .8s ease}
+
+  /* ── PRONUNCIATION PANEL ── */
+  .pron-word-list{display:flex;flex-direction:column;gap:10px;margin-bottom:1.2rem}
+  .pron-word-card{
+    background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);
+    padding:.9rem 1rem;display:flex;gap:12px;align-items:flex-start;
+  }
+  .pron-word-card.good{border-left:3px solid var(--green)}
+  .pron-word-card.watch{border-left:3px solid var(--amber)}
+  .pron-badge{
+    font-size:10px;font-weight:700;padding:2px 8px;border-radius:100px;
+    flex-shrink:0;margin-top:2px;letter-spacing:.3px;
+  }
+  .pron-badge.good{background:var(--green-bg);color:var(--green)}
+  .pron-badge.watch{background:var(--amber-bg);color:var(--amber)}
+  .pron-word{font-size:15px;font-weight:700;color:var(--gray-800);margin-bottom:3px}
+  .pron-phonetic{font-size:13px;color:var(--green);font-weight:600;margin-bottom:4px;letter-spacing:.5px}
+  .pron-tip{font-size:12px;color:var(--gray-600);line-height:1.5}
+  .pron-pattern-box{
+    background:var(--amber-bg);border:1px solid var(--amber-bg2);
+    border-radius:var(--radius);padding:.9rem 1rem;margin-bottom:1rem;
+  }
+  .pron-pattern-lbl{font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+  .pron-practice-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:.8rem}
+  .practice-chip{
+    background:var(--green-bg);color:var(--green);
+    font-size:12px;font-weight:700;padding:5px 12px;border-radius:100px;
+    border:1px solid var(--green-bg2);
+  }
+
+  /* ── VOCABULARY PANEL ── */
+  .vocab-section{margin-bottom:1.3rem}
+  .vocab-section-lbl{font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
+  .vocab-used-row{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:.5rem}
+  .vocab-chip{
+    display:inline-flex;align-items:center;gap:5px;
+    font-size:12px;font-weight:600;padding:5px 12px;border-radius:100px;
+  }
+  .vocab-chip.good{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bg2)}
+  .vocab-chip.upgrade{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bg2)}
+  .vocab-chip.new{background:#EDE7F6;color:#4527A0;border:1px solid #D1C4E9}
+  .vocab-upgrade-card{
+    background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);
+    padding:.85rem 1rem;margin-bottom:8px;
+  }
+  .vocab-upgrade-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+  .vocab-used-word{font-size:13px;font-weight:700;color:var(--gray-600);text-decoration:line-through;opacity:.7}
+  .vocab-arrow{font-size:14px;color:var(--gray-400)}
+  .vocab-better-word{font-size:13px;font-weight:700;color:var(--green)}
+  .vocab-example{font-size:12px;color:var(--gray-400);line-height:1.5;margin-top:3px;font-style:italic}
+  .vocab-phrase-card{
+    background:#fff;border:1px solid #D1C4E9;border-left:3px solid #7C4DFF;
+    border-radius:var(--radius);padding:.85rem 1rem;margin-bottom:8px;
+  }
+  .vocab-phrase-text{font-size:14px;font-weight:700;color:#4527A0;margin-bottom:3px}
+  .vocab-phrase-meaning{font-size:12px;color:var(--gray-600);margin-bottom:3px}
+  .vocab-phrase-example{font-size:12px;color:var(--gray-400);font-style:italic}
+
+  /* ── FLUENCY PANEL ── */
+  .fluency-connectors{margin-bottom:1.2rem}
+  .connector-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:7px}
+  .fluency-meter{
+    background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);
+    padding:1rem;margin-bottom:1rem;
+  }
+  .fluency-meter-lbl{font-size:12px;font-weight:700;color:var(--gray-600);margin-bottom:.5rem}
+  .fluency-meter-bar{height:10px;background:var(--gray-200);border-radius:5px;overflow:hidden;margin-bottom:6px}
+  .fluency-meter-fill{height:100%;border-radius:5px;transition:width .8s ease}
+  .fluency-meter-note{font-size:12px;color:var(--gray-400);line-height:1.5}
+  .fluency-phrase-card{
+    background:#fff;border:1px solid var(--gray-200);border-left:3px solid var(--green);
+    border-radius:var(--radius);padding:.85rem 1rem;margin-bottom:8px;
+  }
+  .fluency-phrase-text{font-size:14px;font-weight:700;color:var(--green);margin-bottom:3px}
+  .fluency-phrase-use{font-size:12px;color:var(--gray-600);margin-bottom:3px}
+  .fluency-phrase-ex{font-size:12px;color:var(--gray-400);font-style:italic}
+
+  @media(max-width:480px){
+    .eval-tab{font-size:11px;padding:8px 4px}
+    .skill-score-circle{width:48px;height:48px}
+    .skill-score-circle .ssc-num{font-size:17px}
+  }
+
+  /* ── EVAL FULL PAGE ── */
+  .ev-page-header{
+    display:flex;align-items:center;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap;
+  }
+  .ev-back-btn{
+    display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;
+    color:var(--gray-400);background:none;border:none;cursor:pointer;padding:0;
+    transition:color .15s;flex-shrink:0;
+  }
+  .ev-back-btn:hover{color:var(--gray-800)}
+  .ev-page-title{font-family:var(--font-display);font-size:20px;font-weight:600;color:var(--gray-800);flex:1}
+  .ev-context-chip{
+    font-size:12px;font-weight:600;background:var(--green-bg);color:var(--green);
+    padding:5px 14px;border-radius:100px;border:1px solid var(--green-bg2);
+  }
+
+  /* Score hero */
+  .ev-hero{
+    background:linear-gradient(135deg,#1B5E20,#2D7D32);
+    border-radius:var(--radius-xl);padding:2rem;margin-bottom:1.5rem;
+    color:#fff;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;
+  }
+  .ev-hero-score{
+    width:90px;height:90px;border-radius:50%;border:3px solid rgba(255,255,255,.4);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:rgba(255,255,255,.12);flex-shrink:0;
+  }
+  .ev-hero-num{font-size:36px;font-weight:700;line-height:1}
+  .ev-hero-den{font-size:13px;opacity:.7;line-height:1.4}
+  .ev-hero-info{flex:1}
+  .ev-hero-label{font-size:13px;font-weight:600;opacity:.8;margin-bottom:4px;letter-spacing:.5px;text-transform:uppercase}
+  .ev-hero-enc{font-family:var(--font-display);font-size:16px;font-style:italic;line-height:1.5;opacity:.95}
+  .ev-hero-bars{display:flex;gap:12px;margin-top:1rem;flex-wrap:wrap}
+  .ev-hero-bar-item{flex:1;min-width:80px}
+  .ev-hero-bar-lbl{font-size:11px;font-weight:700;opacity:.7;margin-bottom:4px}
+  .ev-hero-bar-track{height:6px;background:rgba(255,255,255,.2);border-radius:3px;overflow:hidden}
+  .ev-hero-bar-fill{height:100%;border-radius:3px;background:rgba(255,255,255,.85);transition:width .9s ease}
+  .ev-hero-bar-val{font-size:11px;font-weight:700;margin-top:3px;opacity:.9}
+
+  /* Nav pills for eval sections */
+  .ev-nav{
+    display:flex;gap:6px;margin-bottom:1.5rem;flex-wrap:wrap;
+  }
+  .ev-nav-btn{
+    padding:8px 16px;border-radius:100px;font-size:13px;font-weight:700;
+    border:1.5px solid var(--gray-200);background:#fff;color:var(--gray-600);
+    cursor:pointer;transition:all .15s;
+  }
+  .ev-nav-btn:hover{border-color:var(--green-xl);color:var(--green)}
+  .ev-nav-btn.on{background:var(--green);border-color:var(--green);color:#fff}
+  .ev-section{display:none}.ev-section.on{display:block}
+
+  /* Interactive word cards */
+  .iword-card{
+    background:#fff;border:1.5px solid var(--gray-200);border-radius:var(--radius-lg);
+    padding:1rem 1.2rem;margin-bottom:10px;cursor:pointer;transition:all .18s;
+    position:relative;
+  }
+  .iword-card:hover{border-color:var(--green-xl);box-shadow:var(--shadow)}
+  .iword-card.expanded{border-color:var(--green);box-shadow:var(--shadow)}
+  .iword-card-header{display:flex;align-items:center;gap:10px}
+  .iword-badge{
+    font-size:10px;font-weight:700;padding:3px 9px;border-radius:100px;flex-shrink:0;
+  }
+  .iword-badge.good{background:var(--green-bg);color:var(--green)}
+  .iword-badge.watch{background:var(--amber-bg);color:var(--amber)}
+  .iword-text{font-size:16px;font-weight:700;color:var(--gray-800);flex:1}
+  .iword-phonetic{font-size:13px;color:var(--green);font-weight:600;letter-spacing:.5px}
+  .iword-chevron{font-size:12px;color:var(--gray-400);transition:transform .2s;flex-shrink:0}
+  .iword-card.expanded .iword-chevron{transform:rotate(180deg)}
+  .iword-body{display:none;margin-top:.9rem;padding-top:.9rem;border-top:1px solid var(--gray-200)}
+  .iword-card.expanded .iword-body{display:block}
+  .iword-tip{font-size:13px;color:var(--gray-600);line-height:1.6;margin-bottom:.7rem}
+  .iword-speak-btn{
+    display:inline-flex;align-items:center;gap:6px;padding:7px 14px;
+    border-radius:var(--radius);border:1.5px solid var(--green-bg2);
+    background:var(--green-bg);color:var(--green);font-size:12px;font-weight:700;
+    cursor:pointer;transition:all .15s;
+  }
+  .iword-speak-btn:hover{background:var(--green);color:#fff}
+
+  /* Upgrade card interactive */
+  .iupgrade-card{
+    background:#fff;border:1.5px solid var(--gray-200);border-radius:var(--radius-lg);
+    margin-bottom:10px;overflow:hidden;cursor:pointer;transition:all .18s;
+  }
+  .iupgrade-card:hover{border-color:var(--amber-bg2);box-shadow:var(--shadow)}
+  .iupgrade-header{
+    display:flex;align-items:center;gap:8px;padding:1rem 1.2rem;
+  }
+  .iupgrade-old{font-size:14px;color:var(--gray-400);text-decoration:line-through}
+  .iupgrade-arrow{font-size:16px;color:var(--amber)}
+  .iupgrade-new{font-size:15px;font-weight:700;color:var(--green)}
+  .iupgrade-chevron{margin-left:auto;font-size:12px;color:var(--gray-400);transition:transform .2s}
+  .iupgrade-card.expanded .iupgrade-chevron{transform:rotate(180deg)}
+  .iupgrade-body{
+    display:none;padding:.9rem 1.2rem;background:var(--green-bg);
+    border-top:1px solid var(--green-bg2);font-size:13px;color:var(--green);
+    font-style:italic;line-height:1.6;
+  }
+  .iupgrade-card.expanded .iupgrade-body{display:block}
+
+  /* Checklist */
+  .checklist-item{
+    display:flex;align-items:flex-start;gap:10px;padding:.8rem 0;
+    border-bottom:1px solid var(--gray-200);cursor:pointer;
+  }
+  .checklist-item:last-child{border-bottom:none}
+  .check-box{
+    width:20px;height:20px;border-radius:5px;border:2px solid var(--gray-200);
+    flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;
+    font-size:12px;transition:all .15s;
+  }
+  .checklist-item.checked .check-box{background:var(--green);border-color:var(--green);color:#fff}
+  .check-text{font-size:13px;color:var(--gray-800);line-height:1.5;transition:color .15s}
+  .checklist-item.checked .check-text{color:var(--gray-400);text-decoration:line-through}
+
+  /* Wrap-up session */
+  .wrapup-card{
+    background:#fff;border-radius:var(--radius-xl);box-shadow:var(--shadow-lg);
+    padding:1.5rem;margin-top:1.5rem;border-top:4px solid var(--green);
+  }
+  .wrapup-header{display:flex;align-items:center;gap:10px;margin-bottom:1.2rem}
+  .wrapup-icon{font-size:28px}
+  .wrapup-title{font-family:var(--font-display);font-size:18px;font-weight:600;color:var(--gray-800)}
+  .wrapup-subtitle{font-size:13px;color:var(--gray-400);margin-top:2px}
+  .wrapup-section{margin-bottom:1.4rem}
+  .wrapup-section-lbl{
+    font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;
+    letter-spacing:.7px;margin-bottom:.8rem;
+  }
+  .reflect-prompt{
+    background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius);
+    padding:.9rem 1rem;margin-bottom:8px;
+  }
+  .reflect-q{font-size:13px;font-weight:600;color:var(--gray-800);margin-bottom:6px}
+  .reflect-input{
+    width:100%;padding:8px;border:1px solid var(--gray-200);border-radius:7px;
+    font-family:var(--font-body);font-size:13px;color:var(--gray-800);
+    resize:none;outline:none;min-height:54px;line-height:1.5;
+    transition:border-color .15s;background:#fff;
+  }
+  .reflect-input:focus{border-color:var(--green)}
+  .commit-box{
+    background:linear-gradient(135deg,var(--green-bg),#fff);
+    border:1.5px solid var(--green-bg2);border-radius:var(--radius-lg);
+    padding:1.2rem;
+  }
+  .commit-title{font-size:14px;font-weight:700;color:var(--green);margin-bottom:.8rem}
+  .commit-checklist{margin-bottom:1rem}
+  .wrapup-actions{display:flex;gap:10px;margin-top:1.2rem;flex-wrap:wrap}
+  .btn-share{
+    padding:9px 18px;border-radius:var(--radius);font-family:var(--font-body);
+    font-size:13px;font-weight:700;border:1.5px solid var(--green-bg2);
+    background:var(--green-bg);color:var(--green);cursor:pointer;transition:all .15s;
+  }
+  .btn-share:hover{background:var(--green);color:#fff}
+  .session-complete-badge{
+    display:inline-flex;align-items:center;gap:7px;background:var(--amber-bg);
+    color:var(--amber);font-size:12px;font-weight:700;padding:6px 14px;
+    border-radius:100px;border:1px solid var(--amber-bg2);margin-bottom:1rem;
+  }
+  @media(max-width:600px){
+    .ev-hero{flex-direction:column;align-items:flex-start}
+    .ev-hero-score{width:72px;height:72px}
+    .ev-hero-num{font-size:28px}
+    .ev-hero-bars{gap:8px}
+    .ev-nav-btn{font-size:12px;padding:7px 12px}
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ BROWSER WARNING ══ -->
+<div id="browser-warn" style="display:none;background:#FFF3E0;border-bottom:2px solid #FFE0B2;padding:10px 20px;font-size:13px;color:#E65100;text-align:center;font-weight:600">
+  ⚠️ Voice recording works best in <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong>. If the mic button doesn't work, click the 🔒 padlock in your browser address bar → allow Microphone, then refresh.
+  <button onclick="document.getElementById('browser-warn').style.display='none'" style="margin-left:12px;background:none;border:none;cursor:pointer;font-size:16px;color:#E65100">✕</button>
+</div>
+
+<!-- ══ SETUP SCREEN ══ -->
+<div id="setup-screen">
+  <div class="setup-card">
+    <div class="setup-logo">SpeakWell</div>
+    <div class="setup-tagline">AI-Powered English Speaking Practice</div>
+
+    <label class="setup-label">Your name</label>
+    <input class="setup-input" id="setup-name" type="text" placeholder="e.g. Ainy" autocomplete="off">
+
+    <div id="api-key-section">
+      <label class="setup-label">Free API Key (<a href="https://cloud.cerebras.ai" target="_blank" style="color:var(--amber)">Cerebras</a>)</label>
+      <input class="setup-input" id="setup-key" type="password" placeholder="csk-...">
+      <div class="setup-tip">Get a free key at <a href="https://cloud.cerebras.ai" target="_blank" style="color:var(--green)">cloud.cerebras.ai</a> → Sign Up → API Keys → Create New Key</div>
+    </div>
+
+    <button class="btn-start" onclick="startApp()">Start Practicing →</button>
+    <span class="key-link">Get a free key at <a href="https://cloud.cerebras.ai" target="_blank">cloud.cerebras.ai</a></span>
+  </div>
+</div>
+
+<!-- ══ MAIN APP ══ -->
+<div id="app">
+
+  <div class="app-header">
+    <div class="header-top">
+      <div class="logo">SpeakWell</div>
+      <div class="student-badge" onclick="openSettings()">
+        <span>👤</span>
+        <span id="student-name-display">Student</span>
+      </div>
+    </div>
+    <div class="level-row">
+      <span class="level-lbl">Level:</span>
+      <div class="pills" id="pills">
+        <button class="pill" data-lv="A1">A1 — Beginner</button>
+        <button class="pill on" data-lv="A2">A2 — Elementary</button>
+        <button class="pill" data-lv="B1">B1 — Intermediate</button>
+        <button class="pill" data-lv="B2">B2 — Upper-Int.</button>
+        <button class="pill" data-lv="C1">C1 — Advanced</button>
+        <button class="pill" data-lv="C2">C2 — Mastery</button>
+      </div>
+      <div class="level-chip" id="lv-chip">Elementary</div>
+    </div>
+  </div>
+
+  <div class="tab-nav">
+    <button class="tab on" data-pane="sc" id="tab-sc">🎭 Scripted Scenarios</button>
+    <button class="tab" data-pane="ft" id="tab-ft">💬 Free Talk</button>
+    <button class="tab" data-pane="ev" id="tab-ev" style="display:none">📊 My Results</button>
+    <button class="tab" data-pane="pr" id="tab-pr">🏅 Progress</button>
+  </div>
+
+  <div class="main">
+
+    <!-- ── SCENARIOS ── -->
+    <div class="pane on" id="pane-sc">
+      <p class="sec-intro">
+        Practice real-life English conversations. Each scenario gives you a role, a situation, and a clear language goal.
+        Speak or type your response — then receive detailed AI feedback.
+      </p>
+      <div class="sc-grid" id="sc-grid"></div>
+
+      <div id="sc-session" style="display:none">
+        <button class="session-back" onclick="backSc()">← All Scenarios</button>
+        <div class="session-title" id="sc-s-title"></div>
+        <div class="rec-area">
+          <div class="field-group">
+            <div class="field-lbl">Your Role</div>
+            <div class="field-val" id="sc-role"></div>
+          </div>
+          <div class="field-group">
+            <div class="field-lbl">Situation</div>
+            <div class="field-val" id="sc-prompt"></div>
+          </div>
+          <div class="field-group">
+            <div class="field-lbl">Learning Goal</div>
+            <div class="goal-tag">🎯 <span id="sc-goal"></span></div>
+          </div>
+          <div class="divider">
+            <div class="field-lbl">Your Response</div>
+            <textarea class="ta" id="sc-ta" placeholder="Type what you would say… or click the microphone to speak." oninput="updateCharCount('sc')"></textarea>
+            <div class="char-count" id="sc-chars">0 words</div>
+            <div class="ctrl-row">
+              <button class="btn-mic" id="sc-mic" onclick="toggleRec('sc')">
+                🎙 <span id="sc-mic-lbl">Start Recording</span>
+              </button>
+              <button class="btn-eval" id="sc-eval" onclick="runEvaluate('sc')">Evaluate My Speaking</button>
+              <span class="st-msg" id="sc-st"></span>
+            </div>
+          </div>
+        </div>
+
+            <!-- ── LIVE AUDIO ANALYSIS PANEL ── -->
+            <div class="live-panel" id="sc-live">
+              <div class="lp-header"><div class="lp-rdot"></div> Live Analysis</div>
+              <div class="lp-stats">
+                <div class="lp-stat"><div class="lp-stat-val" id="sc-lp-wpm">0</div><div class="lp-stat-lbl">WPM</div></div>
+                <div class="lp-stat"><div class="lp-stat-val" id="sc-lp-dur">0s</div><div class="lp-stat-lbl">Duration</div></div>
+                <div class="lp-stat"><div class="lp-stat-val" id="sc-lp-fill">0</div><div class="lp-stat-lbl">Fillers</div></div>
+                <div class="lp-stat"><div class="lp-stat-val" id="sc-lp-qual">—</div><div class="lp-stat-lbl">Signal</div></div>
+              </div>
+              <div class="lp-section-lbl">Waveform</div>
+              <div class="lp-waveform" id="sc-lp-wave"></div>
+              <div class="lp-section-lbl">Pitch</div>
+              <div class="lp-pitch-bar"><div class="lp-pitch-track"></div><div class="lp-pitch-marker" id="sc-lp-pm" style="left:50%"></div></div>
+              <div class="lp-pitch-val" id="sc-lp-pval">— Hz</div>
+              <div class="lp-section-lbl">Filler Words Detected</div>
+              <div class="lp-fillers" id="sc-lp-fillers"><span style="font-size:12px;color:var(--gray-400)">None yet…</span></div>
+              <div class="lp-grid">
+                <div><div class="lp-section-lbl">Speaking Rate</div><div class="lp-chart-wrap"><canvas id="sc-lp-chart-wpm"></canvas></div></div>
+                <div><div class="lp-section-lbl">Fluency Score</div><div class="lp-chart-wrap"><canvas id="sc-lp-chart-fl"></canvas></div></div>
+              </div>
+              <div class="lp-summary" id="sc-lp-summary"></div>
+            </div>
+        <div id="sc-ep"></div>
+      </div>
+    </div>
+
+    <!-- ── FREE TALK ── -->
+    <div class="pane" id="pane-ft">
+      <p class="sec-intro">
+        Choose a topic and speak freely for 1–2 minutes. There are no right or wrong answers —
+        focus on expressing yourself clearly and naturally.
+      </p>
+      <div class="tp-grid" id="tp-grid"></div>
+      <div class="rec-area">
+        <div class="field-group">
+          <div class="field-lbl">Selected Topic</div>
+          <div style="font-size:16px;font-weight:700;color:var(--gray-800);margin-top:4px" id="tp-display">← Choose a topic above to begin</div>
+        </div>
+        <div class="tips-box" id="tips-box">
+          <div class="field-lbl">Speaking Tips</div>
+          <div style="margin-top:6px" id="tips-list">
+            <div style="font-size:13px;color:var(--gray-400)">Select a topic to see guidance for your level.</div>
+          </div>
+        </div>
+        <div class="divider">
+          <div class="field-lbl">Your Speech</div>
+          <textarea class="ta" id="ft-ta" placeholder="Start speaking or type your response here… aim for at least 3–4 sentences." style="min-height:140px" oninput="updateCharCount('ft')"></textarea>
+          <div class="char-count" id="ft-chars">0 words</div>
+          <div class="ctrl-row">
+            <button class="btn-mic" id="ft-mic" onclick="toggleRec('ft')">
+              🎙 <span id="ft-mic-lbl">Start Recording</span>
+            </button>
+            <button class="btn-eval" id="ft-eval" onclick="runEvaluate('ft')" disabled>Get Feedback</button>
+            <span class="st-msg" id="ft-st"></span>
+          </div>
+        </div>
+      </div>
+
+            <!-- ── LIVE AUDIO ANALYSIS PANEL ── -->
+            <div class="live-panel" id="ft-live">
+              <div class="lp-header"><div class="lp-rdot"></div> Live Analysis</div>
+              <div class="lp-stats">
+                <div class="lp-stat"><div class="lp-stat-val" id="ft-lp-wpm">0</div><div class="lp-stat-lbl">WPM</div></div>
+                <div class="lp-stat"><div class="lp-stat-val" id="ft-lp-dur">0s</div><div class="lp-stat-lbl">Duration</div></div>
+                <div class="lp-stat"><div class="lp-stat-val" id="ft-lp-fill">0</div><div class="lp-stat-lbl">Fillers</div></div>
+                <div class="lp-stat"><div class="lp-stat-val" id="ft-lp-qual">—</div><div class="lp-stat-lbl">Signal</div></div>
+              </div>
+              <div class="lp-section-lbl">Waveform</div>
+              <div class="lp-waveform" id="ft-lp-wave"></div>
+              <div class="lp-section-lbl">Pitch</div>
+              <div class="lp-pitch-bar"><div class="lp-pitch-track"></div><div class="lp-pitch-marker" id="ft-lp-pm" style="left:50%"></div></div>
+              <div class="lp-pitch-val" id="ft-lp-pval">— Hz</div>
+              <div class="lp-section-lbl">Filler Words Detected</div>
+              <div class="lp-fillers" id="ft-lp-fillers"><span style="font-size:12px;color:var(--gray-400)">None yet…</span></div>
+              <div class="lp-grid">
+                <div><div class="lp-section-lbl">Speaking Rate</div><div class="lp-chart-wrap"><canvas id="ft-lp-chart-wpm"></canvas></div></div>
+                <div><div class="lp-section-lbl">Fluency Score</div><div class="lp-chart-wrap"><canvas id="ft-lp-chart-fl"></canvas></div></div>
+              </div>
+              <div class="lp-summary" id="ft-lp-summary"></div>
+            </div>
+      <div id="ft-ep"></div>
+    </div>
+
+    <!-- ── EVALUATION RESULTS ── -->
+    <div class="pane" id="pane-ev">
+      <div id="ev-content"></div>
+    </div>
+
+    <!-- ── PROGRESS ── -->
+    <div class="pane" id="pane-pr">
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-num" id="pr-sess">0</div>
+          <div class="stat-lbl">Sessions Completed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="pr-avg">—</div>
+          <div class="stat-lbl">Average Score</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="pr-best">—</div>
+          <div class="stat-lbl">Personal Best</div>
+        </div>
+      </div>
+
+      <div class="ach-section">
+        <div class="section-hd">Achievements</div>
+        <div class="ach-grid" id="ach-grid"></div>
+      </div>
+
+      <div class="hist-section">
+        <div class="section-hd">Session History</div>
+        <div id="hist-list"></div>
+      </div>
+
+      <div style="text-align:center;margin-top:1rem">
+        <button class="btn-sec" onclick="if(confirm('Reset all progress? This cannot be undone.'))resetProgress()">Reset My Progress</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ SETTINGS MODAL ══ -->
+<div class="modal-bg" id="settings-modal">
+  <div class="modal">
+    <div class="modal-title">Settings</div>
+    <label class="setup-label">Your name</label>
+    <input class="setup-input" id="settings-name" type="text">
+    <label class="setup-label">API Key</label>
+   <input class="setup-input" id="settings-key" type="password" placeholder="csk-...">
+    <div class="modal-actions">
+      <button class="btn-sec" onclick="closeSettings()">Cancel</button>
+      <button class="btn-pri" onclick="saveSettings()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   TEACHER CONFIGURATION
+   FREE API KEY — no credit card needed:
+   1. Go to cloud.cerebras.ai and sign up (free)
+   2. Go to API Keys → Create New Key
+   3. Paste it below
+
+   Replace "" with your key to embed it for all students.
+   Leave "" to let each student enter their own key.
+═══════════════════════════════════════════ */
+const TEACHER_API_KEY = ""; // Paste your Cerebras key here (csk-...)
+const SHEET_URL = "";       // Paste your Google Apps Script Web App URL here (see setup instructions)
+
+/* ══ DATA ══ */
+const LV = {
+  A1:'Beginner', A2:'Elementary', B1:'Intermediate',
+  B2:'Upper-Intermediate', C1:'Advanced', C2:'Mastery'
+};
+
+const SC = {
+  A1:[
+    {ico:'👋',title:'First Greetings',diff:'Very Easy',
+     role:'You are a new student at an English class.',
+     prompt:'You meet your classmate for the very first time. Greet them, introduce yourself — share your name, where you are from, and one thing you like.',
+     goal:'Use greetings (Hello, Hi, Nice to meet you), give your name and country, share one personal detail'},
+    {ico:'🍕',title:'Ordering at a Café',diff:'Very Easy',
+     role:'You are a customer at a simple café.',
+     prompt:'The waiter comes and says: "May I help you?" Order something to eat and something to drink. Then ask what the price is.',
+     goal:'Use "I would like…", polite requests (please, thank you), numbers for prices'},
+    {ico:'🏠',title:'Describing My Home',diff:'Very Easy',
+     role:'You are speaking with your English teacher.',
+     prompt:'Your teacher asks: "Tell me about your home. How many rooms does it have? What is your favorite room and why?"',
+     goal:'Use "there is / there are", basic adjectives (big, small, nice, clean), room vocabulary'},
+    {ico:'🎒',title:'Talking About School',diff:'Very Easy',
+     role:'You are a student chatting with a friend.',
+     prompt:'Your friend asks: "Do you like your school? What is your favorite subject?" Answer and ask them the same question.',
+     goal:'Describe your school and subjects, express likes/dislikes (I like, I don\'t like, My favorite is)'}
+  ],
+  A2:[
+    {ico:'🛒',title:'At the Supermarket',diff:'Easy',
+     role:'You are a shopper at a supermarket.',
+     prompt:'You cannot find the rice. Ask a store worker where to find it. Then ask if they have a larger size and whether it is on sale today.',
+     goal:'Ask for help politely, use location words (aisle, next to, near), compare sizes'},
+    {ico:'🌤',title:'Talking About Weather',diff:'Easy',
+     role:'You are chatting with your neighbor.',
+     prompt:'Your neighbor says: "The weather this year is so strange, isn\'t it?" Respond and keep the conversation going. Talk about the weather you prefer and why.',
+     goal:'Describe weather (hot, rainy, cold, humid), express preference with "I prefer… because…"'},
+    {ico:'📅',title:'Making Weekend Plans',diff:'Easy',
+     role:'You are planning the weekend with a friend.',
+     prompt:'Your friend asks: "What are you doing this weekend?" Tell them your plans and invite them to join you for at least one activity.',
+     goal:'Use future forms (going to / will), days and times, make a polite invitation'},
+    {ico:'🏥',title:'Doctor\'s Appointment',diff:'Easy',
+     role:'You are a patient at a clinic.',
+     prompt:'You have had a headache and sore throat for two days. The doctor asks: "How are you feeling? Tell me about your symptoms." Explain clearly.',
+     goal:'Describe symptoms (I have a…, I feel…), use body vocabulary, express duration (for two days, since yesterday)'},
+    {ico:'📞',title:'Phone Call to a Hotel',diff:'Easy',
+     role:'You are calling a hotel to book a room.',
+     prompt:'The receptionist answers: "Good morning, Grand Hotel, how can I help you?" Book a room for two nights and ask about breakfast.',
+     goal:'Make a booking request, use polite questions (Do you have…? Is breakfast included?), confirm details'}
+  ],
+  B1:[
+    {ico:'💼',title:'Job Interview',diff:'Intermediate',
+     role:'You are applying for an office administrator position.',
+     prompt:'The interviewer says: "Thank you for coming in. Could you start by telling me about yourself and why you\'re interested in this role?" Give a confident, well-structured answer.',
+     goal:'Present yourself professionally, use past and present tenses accurately, explain motivation with clear reasons'},
+    {ico:'✈️',title:'Planning a Holiday',diff:'Intermediate',
+     role:'You are calling a travel agency.',
+     prompt:'You want to plan a 5-day trip somewhere interesting. The agent asks: "What kind of activities do you enjoy and what is your budget range?" Respond with your travel preferences.',
+     goal:'Express preferences and reasons, use "would like to / I am interested in", discuss budget'},
+    {ico:'🎓',title:'Discussing Education',diff:'Intermediate',
+     role:'You are in a class discussion group.',
+     prompt:'The teacher asks: "Do you think online learning is as effective as studying in a classroom? Give your opinion with at least two reasons."',
+     goal:'State and justify an opinion, use "I think / I believe / In my opinion", give specific examples'},
+    {ico:'🏘️',title:'Community Meeting',diff:'Intermediate',
+     role:'You are a local resident attending a meeting.',
+     prompt:'The chairperson invites residents to speak. Describe one problem you see in your local area and suggest a realistic solution.',
+     goal:'Describe a problem clearly, propose a solution using modals (should, could, might), stay focused and organized'},
+    {ico:'🍽️',title:'Restaurant Complaint',diff:'Intermediate',
+     role:'You are a customer at a restaurant.',
+     prompt:'Your food arrived cold and the order was wrong. The manager comes to your table and says: "Good evening, is everything alright?" Explain the problems politely and request a solution.',
+     goal:'Complain politely and firmly, use "I ordered… but I received…", request specific action without being rude'}
+  ],
+  B2:[
+    {ico:'📰',title:'Data Privacy Debate',diff:'Upper-Intermediate',
+     role:'You are a panelist on a technology discussion program.',
+     prompt:'The host asks: "Tech companies collect vast amounts of personal data. What are the genuine benefits of this, and what are the serious risks ordinary users face?" Give a balanced, analytical response.',
+     goal:'Present multiple perspectives, use complex sentence structures, hedge with "it could be argued / while… however"'},
+    {ico:'🤝',title:'Business Negotiation',diff:'Upper-Intermediate',
+     role:'You represent your company in a contract meeting.',
+     prompt:'The client says: "Your quote is 20% above our budget. We really want to work with you — is there any flexibility?" Negotiate diplomatically without conceding too much.',
+     goal:'Use diplomatic language ("I understand your position…"), conditional sentences, protect your value while being respectful'},
+    {ico:'🌍',title:'Environment vs. Economy',diff:'Upper-Intermediate',
+     role:'You represent an environmental NGO in a public debate.',
+     prompt:'An industrial developer argues: "Economic growth must come first — people need jobs and income before worrying about the environment." Respond with a compelling, logical counter-argument.',
+     goal:'Counter-argue with evidence and logic, use sophisticated vocabulary, link ideas smoothly and persuasively'},
+    {ico:'🏢',title:'Quarterly Business Review',diff:'Upper-Intermediate',
+     role:'You are presenting to senior management.',
+     prompt:'Your manager says: "Please give us a concise summary of this quarter\'s results and your recommendation for Q3." Deliver a clear, professional presentation summary.',
+     goal:'Structure a presentation (overview → key findings → recommendation), maintain formal register throughout'},
+    {ico:'🧑‍⚕️',title:'Medical Ethics Panel',diff:'Upper-Intermediate',
+     role:'You are a member of a hospital ethics committee.',
+     prompt:'The chair asks: "A patient refuses a life-saving blood transfusion for religious reasons. Should doctors respect this decision? What are the ethical considerations?" Discuss thoughtfully.',
+     goal:'Discuss competing values objectively, use modals for possibility and obligation, explore consequences of each position'}
+  ],
+  C1:[
+    {ico:'🧠',title:'Language & Cognition',diff:'Advanced',
+     role:'You are presenting at a linguistics graduate seminar.',
+     prompt:'The professor challenges: "Some scholars argue that language doesn\'t just describe reality — it shapes how we perceive and categorize it. The Sapir-Whorf hypothesis remains controversial. To what extent do you agree?" Develop a nuanced, well-supported position.',
+     goal:'Engage with abstract concepts fluently, use academic discourse and hedging ("it is worth noting / arguably"), demonstrate critical thinking'},
+    {ico:'⚖️',title:'AI Ethics Committee',diff:'Advanced',
+     role:'You are serving on a hospital ethics and technology board.',
+     prompt:'The chair presents a dilemma: "An AI system consistently diagnoses cancer with greater accuracy than our physicians, but it cannot explain its reasoning. Should we adopt it for clinical use, and under what conditions?" Argue your position comprehensively.',
+     goal:'Navigate moral complexity, anticipate and address counterarguments, use sophisticated connectives and hedging language'},
+    {ico:'💹',title:'Economic Policy Briefing',diff:'Advanced',
+     role:'You are a senior economic advisor briefing a minister.',
+     prompt:'The minister says: "Inflation is running at 6%, yet unemployment is at historic lows — a policy dilemma. What combination of monetary and fiscal measures would you advise, and why?" Give a detailed, expert response.',
+     goal:'Deploy economic terminology accurately, build conditional arguments (if X, then Y, unless Z), demonstrate systemic thinking'},
+    {ico:'🎭',title:'Cross-Cultural Communication',diff:'Advanced',
+     role:'You are giving a keynote at an international HR conference.',
+     prompt:'The moderator introduces you: "Our speaker will address the claim that Western management frameworks are ill-suited to Asian organizational cultures. The floor is yours." Develop a sophisticated, evidence-based argument.',
+     goal:'Sustain a complex argument over multiple points, use appropriate academic register, integrate cultural examples seamlessly'}
+  ],
+  C2:[
+    {ico:'📚',title:'Literary Criticism',diff:'Mastery',
+     role:'You are a published literary critic being interviewed on a culture program.',
+     prompt:'The interviewer asks: "Contemporary autofiction has blurred the boundary between memoir and novel — between truth and artful construction. Is this a productive evolution for the novel form, or does it risk making literature self-indulgent and inaccessible?" Construct a sophisticated literary argument.',
+     goal:'Deploy rich idiomatic vocabulary, maintain syntactic variety at native level, demonstrate aesthetic and theoretical literacy'},
+    {ico:'🌐',title:'Geopolitical Analysis',diff:'Mastery',
+     role:'You are a senior foreign policy analyst on live television.',
+     prompt:'The anchor says: "The post-1945 rules-based multilateral order — the UN, WTO, international law — appears to be under unprecedented strain. Is this a catastrophic breakdown or a necessary realignment? And what strategic options do middle powers have?" Give a comprehensive expert analysis.',
+     goal:'Demonstrate mastery: precision, nuance, full register control, and rhetorical sophistication across a sustained response'},
+    {ico:'🔬',title:'Free Will & Determinism',diff:'Mastery',
+     role:'You are the keynote speaker at an interdisciplinary philosophy and neuroscience symposium.',
+     prompt:'The chair introduces: "Advances in neuroscience increasingly suggest that human behavior is determined by prior causes — brain states, genetics, environment. If determinism is true, what becomes of moral responsibility, blame, and the concept of punishment? Our speaker will open the discussion." Synthesize across disciplines.',
+     goal:'Show intellectual range across philosophy, neuroscience, and jurisprudence; deploy language with effortless precision and confidence'}
+  ]
+};
+
+const TP = {
+  A1:[
+    {e:'👨‍👩‍👧',l:'My Family',tips:['Say how many people are in your family','Describe what one family member looks like or does','Practice: mother, father, sister, brother, grandmother, grandfather']},
+    {e:'🏡',l:'My Home',tips:['Describe your house or apartment — is it big or small?','Name all the rooms you have in your home','Use adjectives: big, small, cozy, modern, old, clean, bright']},
+    {e:'🎨',l:'My Hobbies',tips:['Name 2–3 activities you really enjoy doing','Say why you enjoy each one','Use: I like, I love, I enjoy, I often... on the weekend']},
+    {e:'🌈',l:'Favorite Things',tips:['Talk about your favorite color, animal, food, or sport','Explain why it is your favorite — use "because"','Practice: My favorite... is... because it is...']}
+  ],
+  A2:[
+    {e:'🏙️',l:'My City / Town',tips:['Describe where you live — is it big, small, busy, quiet?','Name at least 3 important places (market, mosque, park, school)','Compare: My city is bigger / more crowded than...']},
+    {e:'📅',l:'My Weekend',tips:['Talk about last weekend OR plans for next weekend','Use past simple (I went, I ate, I watched) OR going to (I\'m going to...)','Include time expressions: on Saturday, in the morning, after lunch']},
+    {e:'🍜',l:'Favorite Food',tips:['Describe a dish you absolutely love — what does it taste like?','Say a few ingredients or how it is cooked','Use: I prefer X because it is... / It is made with...']},
+    {e:'🎬',l:'Movies & Shows',tips:['Mention a film or TV show you enjoy watching','Briefly describe the story — what is it about?','Give your opinion clearly: I think it is really...']}
+  ],
+  B1:[
+    {e:'💻',l:'Technology in Daily Life',tips:['Discuss how technology has changed your daily life specifically','Give 2–3 personal examples to support your point','Use: In my opinion, For example, However, As a result, This means that']},
+    {e:'✈️',l:'Travel & Adventure',tips:['Describe a place you dream of visiting and explain exactly why','Discuss what kind of traveler you are — adventurous, relaxing, cultural?','Use: I would like to, It must be amazing, I could imagine myself']},
+    {e:'📚',l:'Education Today',tips:['Compare traditional classroom learning with modern alternatives','Share your own study experiences and what works best for you','Structure clearly: opinion + reason + personal example']},
+    {e:'🌱',l:'Environmental Issues',tips:['Focus on one specific environmental problem that concerns you most','Suggest concrete actions for individuals AND for governments','Use: should, could, it would be better if, unless we...']}
+  ],
+  B2:[
+    {e:'📱',l:'Social Media & Society',tips:['Analyze its effects on society — go deeper than just "good" and "bad"','Present a nuanced argument showing you understand the complexity','Use: On one hand... On the other hand... Nevertheless... It is worth noting that...']},
+    {e:'⚖️',l:'Work-Life Balance',tips:['Argue a clear position on modern work culture — be specific','Support your argument with examples, statistics if you know them, or analogies','Demonstrate a range of sophisticated vocabulary — avoid repetition']},
+    {e:'🤖',l:'Artificial Intelligence',tips:['Choose ONE specific impact of AI (jobs, creativity, healthcare, education) and go deep','Examine one genuine ethical implication with real nuance','Use complex conditionals: If AI were to replace... it might... unless...']},
+    {e:'🏛️',l:'Society & Inequality',tips:['Choose a specific social trend or inequality to analyze — be focused','Present multiple perspectives fairly before giving your own position','Conclude with a well-justified stance rather than sitting on the fence']}
+  ],
+  C1:[
+    {e:'🧬',l:'Science & Ethics',tips:['Engage with a genuine current scientific or medical controversy','Balance empirical evidence with ethical principles — show you see both sides','Maintain consistent academic register; use hedging and qualification throughout']},
+    {e:'🎭',l:'Culture & Identity',tips:['Explore how culture, language, or history shapes personal or collective identity','Use abstract concepts fluently and with precision','Incorporate nuanced qualifications: to a degree, arguably, it is worth noting that, notwithstanding']},
+    {e:'💰',l:'Global Economics',tips:['Analyze inequality, trade patterns, or development challenges with depth','Deploy economic and political vocabulary accurately and confidently','Demonstrate systemic understanding — causes, feedback loops, tradeoffs, unintended consequences']},
+    {e:'🧩',l:'Philosophy of Mind',tips:['Discuss consciousness, free will, personal identity, or the nature of perception','Sustain abstract reasoning coherently across a full 2+ minute response','Navigate philosophical nuance — acknowledge competing views and their merits']}
+  ],
+  C2:[
+    {e:'🌏',l:'Geopolitics & Power',tips:['Provide genuinely expert-level geopolitical analysis — not just description','Weave together history, economics, culture, and strategic logic seamlessly','Deploy sophisticated rhetorical and argumentative techniques with confidence']},
+    {e:'📜',l:'Literature & Language',tips:['Critique a literary movement, specific text, or stylistic trend with authority','Use idiomatic, figurative, and connotatively rich language freely and accurately','Demonstrate stylistic range and register flexibility — move between registers naturally']},
+    {e:'🔭',l:'Future of Humanity',tips:['Synthesize perspectives from science, philosophy, ethics, and policy with ease','Explore long-term civilizational questions with genuine intellectual depth','Show effortless command of register, tone, precision, and rhetorical variety']},
+    {e:'🎨',l:'Art & Aesthetics',tips:['Discuss the nature, purpose, or value of art with genuine sophistication','Use precise evaluative, philosophical, and aesthetic vocabulary with confidence','Engage critically with theoretical positions — show familiarity with art discourse']}
+  ]
+};
+
+const ACHS = [
+  {id:'first',ico:'🎙️',name:'First Words',desc:'Complete your very first session',fn:s=>s.n>=1},
+  {id:'three',ico:'🔥',name:'On a Roll',desc:'Complete 3 sessions',fn:s=>s.n>=3},
+  {id:'five',ico:'⭐',name:'Committed Learner',desc:'Complete 5 sessions',fn:s=>s.n>=5},
+  {id:'ten',ico:'💪',name:'Dedicated Speaker',desc:'Complete 10 sessions',fn:s=>s.n>=10},
+  {id:'twenty',ico:'🏅',name:'Practice Master',desc:'Complete 20 sessions',fn:s=>s.n>=20},
+  {id:'fluency',ico:'💬',name:'Smooth Talker',desc:'Score 8+ in Fluency',fn:s=>s.bFl>=8},
+  {id:'vocab',ico:'📖',name:'Word Master',desc:'Score 8+ in Vocabulary',fn:s=>s.bVo>=8},
+  {id:'pron',ico:'🔊',name:'American Accent Star',desc:'Score 8+ in Pronunciation',fn:s=>(s.bPr||0)>=8},
+  {id:'champion',ico:'🏆',name:'Champion',desc:'Achieve an overall score of 9 or higher',fn:s=>s.bSc>=9},
+  {id:'allround',ico:'🌟',name:'All-Rounder',desc:'Complete both Scripted Scenarios and Free Talk',fn:s=>s.didSc&&s.didFt},
+  {id:'improver',ico:'📈',name:'Improving',desc:'Beat your previous score',fn:s=>s.improved},
+  {id:'levels',ico:'🗺️',name:'Explorer',desc:'Practice at 3 different levels',fn:s=>(s.levels||new Set()).size>=3},
+  {id:'perfect',ico:'💎',name:'Perfectionist',desc:'Score 10 in any single dimension',fn:s=>s.bFl>=10||s.bVo>=10||(s.bPr||0)>=10},
+];
+
+/* ══ STATE ══ */
+let lv='A2', selSc=null, selTp=null, isRec=false, recg=null;
+let studentName='', apiKey='';
+let history=[], stats={n:0,scores:[],bSc:0,bFl:0,bVo:0,bPr:0,didSc:false,didFt:false,improved:false,levels:[]};
+
+/* ══ INIT ══ */
+function init(){
+  try{
+    const saved = localStorage.getItem('speakwell_data');
+    if(saved){
+      try{
+        const d=JSON.parse(saved);
+        studentName=d.name||'';
+        apiKey=d.key||'';
+        lv=d.lv||'A2';
+        history=d.history||[];
+        stats=Object.assign({n:0,scores:[],bSc:0,bFl:0,bVo:0,bPr:0,didSc:false,didFt:false,improved:false,levels:[]},d.stats||{});
+      }catch(e){}
+    }
+  }catch(e){}/* localStorage unavailable */
+
+  // Use teacher key if set
+  if(TEACHER_API_KEY) apiKey=TEACHER_API_KEY;
+
+  if(studentName && (apiKey||TEACHER_API_KEY)){
+    launchApp();
+  } else {
+    // Hide API key section if teacher key is embedded
+    if(TEACHER_API_KEY){
+      document.getElementById('api-key-section').style.display='none';
+    }
+    document.getElementById('setup-screen').style.display='flex';
+  }
+}
+
+function startApp(){
+  const nameEl=document.getElementById('setup-name');
+  const keyEl=document.getElementById('setup-key');
+  studentName=nameEl.value.trim();
+  if(!TEACHER_API_KEY) apiKey=keyEl.value.trim();
+
+  if(!studentName){nameEl.focus();nameEl.style.borderColor='var(--red)';return;}
+  if(!apiKey){
+    if(keyEl) keyEl.focus();
+    if(keyEl) keyEl.style.borderColor='var(--red)';
+    return;
+  }
+  save();
+  launchApp();
+}
+
+function launchApp(){
+  document.getElementById('setup-screen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  document.getElementById('student-name-display').textContent=studentName;
+
+  // Set active level pill
+  document.querySelectorAll('.pill').forEach(p=>{
+    p.classList.toggle('on',p.dataset.lv===lv);
+  });
+  document.getElementById('lv-chip').textContent=LV[lv];
+
+  renderSc();renderTp();renderProgress();initRec();
+}
+
+function save(){
+  try{
+    localStorage.setItem('speakwell_data', JSON.stringify({
+      name:studentName, key:apiKey, lv,
+      history:history.slice(0,50), stats
+    }));
+  }catch(e){}/* localStorage unavailable */
+}
+
+/* ══ SETTINGS ══ */
+function openSettings(){
+  document.getElementById('settings-name').value=studentName;
+  document.getElementById('settings-key').value=TEACHER_API_KEY?'[Set by teacher]':apiKey;
+  document.getElementById('settings-modal').classList.add('on');
+}
+function closeSettings(){document.getElementById('settings-modal').classList.remove('on');}
+function saveSettings(){
+  studentName=document.getElementById('settings-name').value.trim()||studentName;
+  if(!TEACHER_API_KEY) apiKey=document.getElementById('settings-key').value.trim()||apiKey;
+  document.getElementById('student-name-display').textContent=studentName;
+  save();closeSettings();
+}
+document.getElementById('settings-modal').addEventListener('click',e=>{
+  if(e.target===e.currentTarget)closeSettings();
+});
+
+/* ══ LEVEL & TABS ══ */
+document.getElementById('pills').addEventListener('click',e=>{
+  const p=e.target.closest('.pill');if(!p)return;
+  document.querySelectorAll('.pill').forEach(x=>x.classList.remove('on'));
+  p.classList.add('on');lv=p.dataset.lv;
+  document.getElementById('lv-chip').textContent=LV[lv];
+  renderSc();renderTp();
+  selSc=null;selTp=null;
+  document.getElementById('sc-session').style.display='none';
+  document.getElementById('sc-grid').style.display='grid';
+  save();
+});
+
+document.querySelectorAll('.tab').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+    document.querySelectorAll('.pane').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    document.getElementById('pane-'+b.dataset.pane).classList.add('on');
+  });
+});
+
+/* ══ SPEECH RECOGNITION ══ */
+function initRec(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR)return false;
+  recg=new SR();
+  recg.continuous=true;
+  recg.interimResults=true;
+  recg.lang='en-US';
+  return true;
+}
+
+async function toggleRec(m){
+  const ta=document.getElementById(m+'-ta');
+  const btn=document.getElementById(m+'-mic');
+  const lbl=document.getElementById(m+'-mic-lbl');
+  const st=document.getElementById(m+'-st');
+
+  if(isRec){stopRec(m);return;}
+
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){
+    st.innerHTML='⚠️ Voice input requires <strong>Chrome</strong> or <strong>Edge</strong> on desktop. You can also <strong>type</strong> your response below.';
+    return;
+  }
+
+  // Step 1: explicitly request mic permission first — gives a clear browser prompt
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    stream.getTracks().forEach(t=>t.stop());
+  }catch(err){
+    if(err.name==='NotAllowedError'||err.name==='PermissionDeniedError'){
+      st.innerHTML='🔒 <strong>Microphone blocked.</strong> Click the 🔒 padlock in the address bar → set Microphone to <strong>Allow</strong> → refresh the page.';
+    }else if(err.name==='NotFoundError'){
+      st.innerHTML='🎤 No microphone found. Please plug one in and try again, or type your response below.';
+    }else{
+      st.innerHTML='⚠️ Could not access microphone ('+err.name+'). You can type your response below.';
+    }
+    return;
+  }
+
+  // Step 2: build fresh SpeechRecognition instance
+  try{recg=new SR();}catch(e){
+    st.innerHTML='⚠️ Speech recognition failed to start. Try refreshing the page.';
+    return;
+  }
+  recg.continuous=true;
+  recg.interimResults=true;
+  recg.lang='en-US';
+
+  let fin=ta.value;
+  let started=false;
+
+  recg.onstart=()=>{
+    started=true;
+    isRec=true;
+    btn.classList.add('live');
+    lbl.innerHTML='<span class="rdot"></span> Stop Recording';
+    st.textContent='🎙 Listening… speak now';
+    lpStart(m);
+  };
+
+  recg.onresult=ev=>{
+    let tmp='';
+    for(let i=ev.resultIndex;i<ev.results.length;i++){
+      if(ev.results[i].isFinal){fin+=ev.results[i][0].transcript+' ';}
+      else{tmp+=ev.results[i][0].transcript;}
+    }
+    ta.value=fin+tmp;
+    updateCharCount(m);
+  };
+
+  recg.onerror=ev=>{
+    if(ev.error==='no-speech') return; // non-fatal, keep going
+    const msgs={
+      'not-allowed':'🔒 Microphone access denied. Click the padlock in the address bar → Allow Microphone → refresh.',
+      'audio-capture':'🎤 No microphone detected. Please plug one in and try again.',
+      'network':'🌐 Network error with speech service. Check your internet connection.',
+      'service-not-allowed':'⚠️ Speech service blocked. Make sure the page URL starts with https:// and you are using Chrome or Edge.',
+      'aborted':''
+    };
+    const msg=msgs[ev.error];
+    if(msg!==undefined){if(msg) st.innerHTML=msg;}
+    else{st.innerHTML='⚠️ Mic error: '+ev.error+'. You can type your response below.';}
+    if(ev.error!=='aborted') stopRec(m);
+  };
+
+  recg.onend=()=>{
+    if(isRec){try{recg.start();}catch(e){stopRec(m);}}
+  };
+
+  try{
+    recg.start();
+    setTimeout(()=>{
+      if(!started&&!isRec){
+        st.innerHTML='⚠️ Microphone didn\'t start. Please allow access when prompted, then try again.';
+      }
+    },4000);
+  }catch(e){
+    st.innerHTML='⚠️ Could not start recording: '+e.message;
+  }
+}
+
+function stopRec(m){
+  isRec=false;
+  lpStop(m);
+  const btn=document.getElementById(m+'-mic');
+  if(btn)btn.classList.remove('live');
+  const lbl=document.getElementById(m+'-mic-lbl');
+  if(lbl)lbl.textContent='🎙 Start Recording';
+  const st=document.getElementById(m+'-st');
+  if(st)st.textContent='';
+  if(recg){try{recg.onend=null;recg.stop();}catch(e){}}
+}
+
+function updateCharCount(m){
+  const ta=document.getElementById(m+'-ta');
+  const words=ta.value.trim().split(/\s+/).filter(w=>w.length>0).length;
+  document.getElementById(m+'-chars').textContent=words+' word'+(words!==1?'s':'');
+}
+
+/* ══ RENDER SCENARIOS ══ */
+const DIFF_COLOR={
+  'Very Easy':'background:#E8F5E9;color:#2D7D32',
+  'Easy':'background:#E3F2FD;color:#1565C0',
+  'Intermediate':'background:#FFF3E0;color:#E65100',
+  'Upper-Intermediate':'background:#FCE4EC;color:#C62828',
+  'Advanced':'background:#EDE7F6;color:#4527A0',
+  'Mastery':'background:#212121;color:#FFF9C4'
+};
+
+function renderSc(){
+  const grid=document.getElementById('sc-grid');
+  grid.innerHTML=(SC[lv]||[]).map((s,i)=>`
+    <div class="sc-card" onclick="openSc(${i})">
+      <div class="sc-ico">${s.ico}</div>
+      <div class="sc-title">${s.title}</div>
+      <div class="sc-hint">${s.goal.slice(0,65)}…</div>
+      <span class="sc-diff" style="${DIFF_COLOR[s.diff]||''}">${s.diff}</span>
+    </div>`).join('');
+}
+
+function openSc(i){
+  selSc=SC[lv][i];
+  document.getElementById('sc-grid').style.display='none';
+  document.getElementById('sc-session').style.display='block';
+  document.getElementById('sc-s-title').textContent=selSc.ico+' '+selSc.title;
+  document.getElementById('sc-role').textContent=selSc.role;
+  document.getElementById('sc-prompt').textContent=selSc.prompt;
+  document.getElementById('sc-goal').textContent=selSc.goal;
+  document.getElementById('sc-ta').value='';
+  document.getElementById('sc-chars').textContent='0 words';
+  document.getElementById('sc-ep').innerHTML='';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function backSc(){
+  document.getElementById('sc-grid').style.display='grid';
+  document.getElementById('sc-session').style.display='none';
+  if(isRec)stopRec('sc');
+}
+
+/* ══ RENDER TOPICS ══ */
+function renderTp(){
+  document.getElementById('tp-grid').innerHTML=(TP[lv]||[]).map((t,i)=>`
+    <div class="tp-card" onclick="selTopic(${i})">
+      <span class="tp-emo">${t.e}</span>${t.l}
+    </div>`).join('');
+  selTp=null;
+  document.getElementById('tp-display').textContent='← Choose a topic above to begin';
+  document.getElementById('tips-list').innerHTML='<div style="font-size:13px;color:var(--gray-400)">Select a topic to see guidance for your level.</div>';
+  document.getElementById('ft-eval').disabled=true;
+  document.getElementById('ft-ta').value='';
+  document.getElementById('ft-chars').textContent='0 words';
+  document.getElementById('ft-ep').innerHTML='';
+}
+
+function selTopic(i){
+  selTp=TP[lv][i];
+  document.querySelectorAll('.tp-card').forEach((c,j)=>c.classList.toggle('on',j===i));
+  document.getElementById('tp-display').textContent=selTp.e+' '+selTp.l;
+  document.getElementById('tips-list').innerHTML=selTp.tips.map(t=>
+    `<div style="display:flex;align-items:flex-start;gap:7px;font-size:13px;color:var(--gray-600);margin-bottom:5px;line-height:1.5">
+      <span style="color:var(--green);font-weight:700;flex-shrink:0">→</span>${t}
+     </div>`
+  ).join('');
+  document.getElementById('ft-eval').disabled=false;
+}
+
+/* ══ SCORE HELPERS ══ */
+function scColor(v){
+  if(v>=8.5)return{text:'var(--green)',bg:'var(--green-bg)'};
+  if(v>=6.5)return{text:'var(--amber)',bg:'var(--amber-bg)'};
+  return{text:'var(--red)',bg:'var(--red-bg)'};
+}
+
+/* ══ EVALUATE ══ */
+async function runEvaluate(m){
+  const ta=document.getElementById(m+'-ta');
+  const ep=document.getElementById(m+'-ep');
+  const sb=document.getElementById(m+'-eval');
+  const txt=ta.value.trim();
+
+  if(!txt){
+    const st=document.getElementById(m+'-st');
+    st.textContent='Please speak or type a response first!';
+    setTimeout(()=>st.textContent='',3000);return;
+  }
+  if(isRec)stopRec(m);
+
+  sb.disabled=true;
+  ep.innerHTML=`<div class="eval-wrap"><div class="ld">
+    <div class="ld-dots"><div class="ld-dot"></div><div class="ld-dot"></div><div class="ld-dot"></div></div>
+    Analyzing your speaking — this takes a few seconds…
+  </div></div>`;
+
+  const ctx=m==='sc'
+    ?`Scripted Scenario: "${selSc.title}"\nRole: ${selSc.role}\nSituation: ${selSc.prompt}\nLearning Goal: ${selSc.goal}`
+    :`Free Talk Topic: "${selTp.e} ${selTp.l}"`;
+
+  const wordCount=txt.split(/\s+/).filter(w=>w).length;
+
+  // Build live analysis data block to inject into the prompt
+  const snap = LP.snapshot;
+  const liveBlock = snap && snap.hasLiveData ? `
+LIVE PERFORMANCE DATA (recorded by in-app audio tracker — use as primary evidence for fluency scoring):
+- Speaking duration: ${snap.durationSec}s
+- Word count: ${snap.wordCount} words
+- Speaking pace: ${snap.wpm} WPM (${snap.pace} — natural conversational range is 110–190 WPM)
+- Filler words detected: ${snap.fillerCount} penalised occurrences${snap.uniqueFillers.length > 0 ? ' — ' + snap.uniqueFillers.map(f => { const c = snap.fillerList.filter(x=>x===f).length; return c > 1 ? f + ' ×' + c : f; }).join(', ') : ' (none penalised)'}
+- Note: common words (like, so, actually, right) are only penalised when used more than 3× — single/double uses are considered normal
+- Filler rate: ${snap.fillerRate} fillers per 100 words (0–2 is excellent; 3–5 is acceptable; 6+ needs work)
+- Composite delivery fluency score: ${snap.fluencyPct}% — computed from: pace (${snap.paceScore}/40), filler rate (${snap.fillerScore}/35), duration (${Math.min(15, Math.round((snap.durationSec / 90) * 15))}/15), consistency (${snap.fluencyPct - snap.paceScore - snap.fillerScore - Math.min(15, Math.round((snap.durationSec / 90) * 15))}/10)
+
+FLUENCY SCORE MAPPING — your fluency score (1-10) MUST reflect this:
+  85–100% → 9–10  (excellent delivery)
+  70–84%  → 7–8   (good delivery, minor issues)
+  55–69%  → 5–6   (adequate, clear room to improve)
+  40–54%  → 3–4   (noticeable issues affecting comprehension)
+  below 40% → 1–2 (significant delivery problems)
+
+Also factor in: text quality, sentence completeness, and use of connectors from the transcript.
+In fluencyDetail.summary: explicitly mention the measured WPM (${snap.wpm}), filler rate (${snap.fillerRate}/100w), and duration (${snap.durationSec}s).
+` : `
+LIVE PERFORMANCE DATA: Not available (student typed response or mic was not used).
+Evaluate fluency from the transcript text only — assess sentence completeness, connector use, response length, and naturalness.
+`;
+
+  const prompt=`You are an experienced, encouraging English language teacher evaluating a ${lv}-level (${LV[lv]}) student's spoken response.
+
+Context:
+${ctx}
+
+Student's transcribed response (${wordCount} words):
+"${txt}"
+
+${liveBlock}
+Evaluate carefully using BOTH the transcript AND the live performance data above. Return ONLY a valid JSON object with EXACTLY this structure — no markdown, no extra text, no code fences:
+{
+  "fluency": <integer 1-10>,
+  "vocabulary": <integer 1-10>,
+  "pronunciation": <integer 1-10>,
+  "overall": <number 1.0-10.0 one decimal, average of the three scores>,
+  "strengths": ["specific strength 1", "specific strength 2"],
+  "improvements": ["specific improvement 1", "specific improvement 2"],
+  "corrections": ["corrected sentence if needed, else empty string"],
+  "encouragement": "warm 1-2 sentence encouragement referencing their response",
+  "nextGoal": "one clear achievable goal for next session",
+
+  "pronunciationDetail": {
+    "score": <integer 1-10>,
+    "summary": "1-2 sentence assessment of American English pronunciation based on word choices and patterns in the text. Note any words that are typically mispronounced by learners from this background when speaking with an American accent.",
+    "accentFocus": "1 sentence about the most important American accent feature to focus on (e.g. rhotic 'r', vowel sounds, stress patterns, linking words)",
+    "words": [
+      {
+        "word": "a word from their response that needs attention OR is well-pronounced in American English",
+        "phonetic": "American English phonetic breakdown e.g. COM-fer-ta-bul (use American vowel sounds)",
+        "tip": "specific tip on how to say this word with an American accent",
+        "status": "watch"
+      },
+      {
+        "word": "another word — pick 2-4 total, mix of 'good' and 'watch'",
+        "phonetic": "American English phonetic breakdown",
+        "tip": "tip for American accent",
+        "status": "good"
+      }
+    ],
+    "patterns": ["a common American English pronunciation pattern issue for this level learner, e.g. rhotic r, vowel reduction, word stress, linking/connected speech"],
+    "practiceWords": ["word1", "word2", "word3 — words to practice with an American accent"]
+  },
+
+  "vocabularyDetail": {
+    "score": <integer 1-10>,
+    "summary": "1-2 sentence vocabulary assessment",
+    "usedWell": [
+      {"word": "a word or phrase they used well", "note": "why it's good"}
+    ],
+    "upgrade": [
+      {"used": "a simple word they used", "better": "a stronger alternative / more alternatives", "example": "short example sentence using the better word"}
+    ],
+    "newPhrases": [
+      {"phrase": "a useful phrase for this topic/level", "meaning": "what it means", "example": "example sentence"}
+    ]
+  },
+
+  "fluencyDetail": {
+    "score": <integer 1-10>,
+    "summary": "1-2 sentence fluency assessment",
+    "connectorsUsed": ["connector words they actually used like 'because', 'however', 'also'"],
+    "connectorsToAdd": ["2-3 connector words that would improve this response"],
+    "sentenceVariety": <integer 1-10>,
+    "sentenceVarietyNote": "brief note on their sentence structure variety",
+    "naturalPhrases": [
+      {"phrase": "a natural American English phrase relevant to this scenario", "use": "when to use it", "example": "example sentence"}
+    ]
+  }
+}
+
+Calibration:
+- A1/A2: Scores 5-7 for solid responses. Focus on basics.
+- B1/B2: Scores 6-8 for good responses. Expect structure and range.
+- C1/C2: Scores 7-9 for strong responses. Expect nuance and precision.
+- Short responses (under 20 words): score fluency lower, note it in improvements.
+- Pronunciation is evaluated based on American English accent standards specifically.
+- Be honest, warm, and constructive. Specific feedback helps more than general praise.
+- Fluency score MUST align with the live performance data if provided (see above). Do not ignore WPM or filler data.
+- In fluencyDetail.summary: explicitly mention the measured WPM and any detected filler words by name.
+- In fluencyDetail.connectorsUsed: identify real connectors from the transcript.
+- The overall score should reflect all three dimensions equally.`;
+
+  // Call Cerebras API with retry on 429
+  const callCerebras = async (retries=5, delayMs=3000) => {
+    const key=apiKey;
+    const res=await fetch('https://api.cerebras.ai/v1/chat/completions',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':`Bearer ${key}`
+      },
+      body:JSON.stringify({
+        model:'llama-3.3-70b',
+        max_tokens:1200,
+        temperature:0.4,
+        messages:[{role:'user', content:prompt}]
+      })
+    });
+    if(res.status===429 && retries>0){
+      const wait=delayMs+Math.random()*5000;
+      ep.innerHTML=`<div class="eval-wrap"><div class="ld">
+        <div class="ld-dots"><div class="ld-dot"></div><div class="ld-dot"></div><div class="ld-dot"></div></div>
+        <div>Server busy — retrying in ${Math.round(wait/1000)}s…</div>
+        <div style="font-size:12px;color:var(--gray-400);margin-top:8px">${retries} ${retries===1?'attempt':'attempts'} remaining</div>
+      </div></div>`;
+      await new Promise(r=>setTimeout(r,wait));
+      return callCerebras(retries-1, delayMs*2);
+    }
+    const d=await res.json();
+    if(d.error){throw new Error(d.error.message||JSON.stringify(d.error));}
+    return d;
+  };
+
+  try{
+    const d=await callCerebras();
+    const raw=(d.choices?.[0]?.message?.content||'').replace(/```json|```/g,'').trim();
+    const r=JSON.parse(raw);
+    renderEval(ep,r,m);
+    recordSession(r,m);
+  }catch(err){
+    ep.innerHTML=`<div class="eval-wrap" style="text-align:center;padding:2rem">
+      <div style="font-size:32px;margin-bottom:12px">⚠️</div>
+      <div style="font-size:14px;font-weight:600;color:var(--gray-800);margin-bottom:6px">Could not get feedback</div>
+      <div style="font-size:13px;color:var(--gray-400);margin-bottom:1rem">${err.message==="Too Many Requests"||err.message?.includes('429')?'API rate limit reached. Please wait a minute and try again.':err.message||'Please check your internet connection and API key, then try again.'}</div>
+      <button class="btn-pri" onclick="runEvaluate('${m}')">Try Again</button>
+    </div>`;
+  }
+  sb.disabled=false;
+}
+
+/* ══ RENDER EVALUATION ══ */
+function evalTab(id){
+  document.querySelectorAll('.eval-tab').forEach(t=>t.classList.toggle('on',t.dataset.et===id));
+  document.querySelectorAll('.eval-tab-pane').forEach(p=>p.classList.toggle('on',p.id===id));
+}
+
+function switchEvSection(id){
+  document.querySelectorAll('.ev-nav-btn').forEach(b=>b.classList.toggle('on',b.dataset.sec===id));
+  document.querySelectorAll('.ev-section').forEach(s=>s.classList.toggle('on',s.id===id));
+}
+
+function toggleIword(card){
+  card.classList.toggle('expanded');
+}
+
+function toggleIupgrade(card){
+  card.classList.toggle('expanded');
+}
+
+function speakWord(word, btn){
+  if(!window.speechSynthesis)return;
+  const utt=new SpeechSynthesisUtterance(word);
+  utt.lang='en-US';utt.rate=0.85;
+  const voices=speechSynthesis.getVoices();
+  const usVoice=voices.find(v=>v.lang==='en-US'&&v.name.includes('Google'))||voices.find(v=>v.lang==='en-US');
+  if(usVoice)utt.voice=usVoice;
+  const orig=btn.innerHTML;
+  btn.innerHTML='🔊 Speaking…';
+  utt.onend=()=>{btn.innerHTML=orig};
+  speechSynthesis.speak(utt);
+}
+
+function toggleCheck(item){
+  item.classList.toggle('checked');
+  const box=item.querySelector('.check-box');
+  box.textContent=item.classList.contains('checked')?'✓':'';
+}
+
+function switchToEvalTab(mode, label){
+  // Show the Results tab
+  const evTab=document.getElementById('tab-ev');
+  evTab.style.display='';
+  evTab.textContent='📊 My Results';
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.pane').forEach(x=>x.classList.remove('on'));
+  evTab.classList.add('on');
+  document.getElementById('pane-ev').classList.add('on');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function goBackFromEval(m){
+  const evTab=document.getElementById('tab-ev');
+  evTab.style.display='none';
+  const targetTab=document.getElementById('tab-'+m);
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.pane').forEach(x=>x.classList.remove('on'));
+  targetTab.classList.add('on');
+  document.getElementById('pane-'+m).classList.add('on');
+}
+
+function renderEval(el,r,m){
+  const ov=parseFloat(r.overall);
+  const c=scColor(ov);
+  const corrs=(r.corrections||[]).filter(x=>x&&x.trim());
+  const pr=r.pronunciationDetail||r.pronunciation||{};
+  const vd=r.vocabularyDetail||{};
+  const fd=r.fluencyDetail||{};
+  const pronScore=r.pronunciation||(pr.score||5);
+  const label=m==='sc'?(selSc?selSc.title:'Scenario'):(selTp?(selTp.e+' '+selTp.l):'Free Talk');
+
+  // ── helpers ──
+  const scoreCircle=(sc)=>{
+    const col=scColor(sc);
+    return`<div class="skill-score-circle" style="border-color:${col.text};color:${col.text}">
+      <span class="ssc-num">${sc}</span><span class="ssc-den">/10</span>
+    </div>`;
+  };
+  const skillBar=(sc)=>{
+    const col=scColor(sc);
+    return`<div class="skill-bar-wrap"><div class="skill-bar-fill" style="width:${sc*10}%;background:${col.text}"></div></div>`;
+  };
+
+  // ── SCORE HERO ──
+  const scoreLabel=ov>=9?'Outstanding 🌟':ov>=8?'Excellent 🎉':ov>=7?'Very Good 👏':ov>=6?'Good Job 👍':ov>=5?'Keep Going 💪':'Room to Grow 🌱';
+  const heroHtml=`
+  <div class="ev-hero">
+    <div class="ev-hero-score">
+      <span class="ev-hero-num">${ov.toFixed(1)}</span>
+      <span class="ev-hero-den">/ 10</span>
+    </div>
+    <div class="ev-hero-info">
+      <div class="ev-hero-label">${scoreLabel}</div>
+      <div class="ev-hero-enc">"${r.encouragement||'Great effort — keep practicing!'}"</div>
+      <div class="ev-hero-bars">
+        ${[['🗣 Fluency',r.fluency],['📖 Vocabulary',r.vocabulary],['🔊 Pronunciation',pronScore]].map(([lbl,sc])=>`
+          <div class="ev-hero-bar-item">
+            <div class="ev-hero-bar-lbl">${lbl}</div>
+            <div class="ev-hero-bar-track"><div class="ev-hero-bar-fill" style="width:${sc*10}%"></div></div>
+            <div class="ev-hero-bar-val">${sc}/10</div>
+          </div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+
+  // ── OVERVIEW SECTION ──
+  const overviewSec=`<div class="ev-section on" id="esec-overview">
+    <div class="two-col" style="margin-bottom:1.1rem">
+      <div>
+        <div class="ev-section-lbl">✅ What went well</div>
+        ${(r.strengths||[]).map(s=>`<div class="ev-li"><span class="ev-dot" style="background:var(--green)"></span>${s}</div>`).join('')}
+      </div>
+      <div>
+        <div class="ev-section-lbl">📌 Areas to work on</div>
+        ${(r.improvements||[]).map(s=>`<div class="ev-li"><span class="ev-dot" style="background:var(--amber)"></span>${s}</div>`).join('')}
+      </div>
+    </div>
+    ${corrs.length?`<div class="corr-box">
+      <div class="corr-lbl">✏️ Suggested Corrections</div>
+      ${corrs.map(c=>`<div class="corr-txt">→ ${c}</div>`).join('')}
+    </div>`:''}
+    <div class="goal-box">
+      <div class="goal-lbl">🎯 Your Next Goal</div>
+      <div class="goal-txt">${r.nextGoal||''}</div>
+    </div>
+  </div>`;
+
+  // ── PRONUNCIATION SECTION (interactive) ──
+  const pronWordCards=(pr.words||[]).map((w,i)=>`
+    <div class="iword-card" onclick="this.classList.toggle('expanded')">
+      <div class="iword-card-header">
+        <span class="iword-badge ${w.status==='good'?'good':'watch'}">${w.status==='good'?'✓ CLEAR':'👁 WATCH'}</span>
+        <span class="iword-text">${w.word||''}</span>
+        <span class="iword-phonetic">${w.phonetic||''}</span>
+        <span class="iword-chevron">▼</span>
+      </div>
+      <div class="iword-body">
+        <div class="iword-tip">${w.tip||''}</div>
+        <button class="iword-speak-btn" onclick="event.stopPropagation();speakWord('${(w.word||'').replace(/'/g,"\\'")}',this)">🔊 Hear American Pronunciation</button>
+      </div>
+    </div>`).join('');
+
+  const pronSec=`<div class="ev-section" id="esec-pron">
+    <div class="skill-header">
+      ${scoreCircle(pr.score||pronScore)}
+      <div class="skill-header-info">
+        <div class="skill-header-label">American Accent Pronunciation</div>
+        <div class="skill-header-desc">${pr.summary||'How closely your pronunciation matches standard American English.'}</div>
+        ${skillBar(pr.score||pronScore)}
+      </div>
+    </div>
+    ${pr.accentFocus?`<div class="pron-pattern-box" style="background:var(--green-bg);border-color:var(--green-bg2);margin-bottom:1rem">
+      <div class="pron-pattern-lbl" style="color:var(--green)">🎯 American Accent Focus</div>
+      <div style="font-size:13px;color:var(--green);line-height:1.6">${pr.accentFocus}</div>
+    </div>`:''}
+    ${pronWordCards?`<div style="margin-bottom:1rem">
+      <div class="vocab-section-lbl">Tap each word to expand — click 🔊 to hear the American pronunciation</div>
+      ${pronWordCards}
+    </div>`:''}
+    ${(pr.patterns||[]).length?`<div class="pron-pattern-box" style="margin-bottom:1rem">
+      <div class="pron-pattern-lbl">⚠️ Pattern to Watch</div>
+      ${pr.patterns.map(p=>`<div style="font-size:13px;color:var(--amber);line-height:1.6">→ ${p}</div>`).join('')}
+    </div>`:''}
+    ${(pr.practiceWords||[]).length?`<div>
+      <div class="vocab-section-lbl">🔁 Practice These Words</div>
+      <div class="pron-practice-row">
+        ${pr.practiceWords.map(w=>`<span class="practice-chip" onclick="speakWord('${w.replace(/'/g,"\\'")}',this)" style="cursor:pointer">🔊 ${w}</span>`).join('')}
+      </div>
+      <div style="font-size:12px;color:var(--gray-400);margin-top:8px">Click any word to hear it spoken with an American accent</div>
+    </div>`:''}
+  </div>`;
+
+  // ── VOCABULARY SECTION (interactive) ──
+  const upgradeCards=(vd.upgrade||[]).map(w=>`
+    <div class="iupgrade-card" onclick="this.classList.toggle('expanded')">
+      <div class="iupgrade-header">
+        <span class="iupgrade-old">${w.used||''}</span>
+        <span class="iupgrade-arrow">→</span>
+        <span class="iupgrade-new">${w.better||''}</span>
+        <span class="iupgrade-chevron">▼</span>
+      </div>
+      ${w.example?`<div class="iupgrade-body">"${w.example}"</div>`:''}
+    </div>`).join('');
+
+  const vocabSec=`<div class="ev-section" id="esec-vocab">
+    <div class="skill-header">
+      ${scoreCircle(vd.score||r.vocabulary)}
+      <div class="skill-header-info">
+        <div class="skill-header-label">Vocabulary</div>
+        <div class="skill-header-desc">${vd.summary||'The range, accuracy, and appropriateness of words you used.'}</div>
+        ${skillBar(vd.score||r.vocabulary)}
+      </div>
+    </div>
+    ${(vd.usedWell||[]).length?`<div class="vocab-section">
+      <div class="vocab-section-lbl">⭐ Words You Used Well</div>
+      <div class="vocab-used-row">
+        ${vd.usedWell.map(w=>`<span class="vocab-chip good" title="${w.note||''}">✓ ${w.word||w}</span>`).join('')}
+      </div>
+      ${vd.usedWell.map(w=>w.note?`<div style="font-size:12px;color:var(--gray-400);margin-top:4px;line-height:1.5">→ <strong style="color:var(--green)">${w.word}</strong>: ${w.note}</div>`:'').join('')}
+    </div>`:''}
+    ${upgradeCards?`<div class="vocab-section">
+      <div class="vocab-section-lbl">⬆️ Upgrade These Words — tap to see example</div>
+      ${upgradeCards}
+    </div>`:''}
+    ${(vd.newPhrases||[]).length?`<div class="vocab-section">
+      <div class="vocab-section-lbl">💡 New Phrases to Learn</div>
+      ${vd.newPhrases.map(p=>`
+        <div class="vocab-phrase-card">
+          <div class="vocab-phrase-text">${p.phrase||''}</div>
+          <div class="vocab-phrase-meaning">${p.meaning||''}</div>
+          ${p.example?`<div class="vocab-phrase-example">"${p.example}"</div>`:''}
+        </div>`).join('')}
+    </div>`:''}
+  </div>`;
+
+  // ── FLUENCY SECTION ──
+  const svScore=fd.sentenceVariety||5;
+  const fluencySec=`<div class="ev-section" id="esec-fluency">
+    <div class="skill-header">
+      ${scoreCircle(fd.score||r.fluency)}
+      <div class="skill-header-info">
+        <div class="skill-header-label">Fluency</div>
+        <div class="skill-header-desc">${fd.summary||'How naturally and smoothly your speech flows.'}</div>
+        ${skillBar(fd.score||r.fluency)}
+      </div>
+    </div>
+    <div class="fluency-meter">
+      <div class="fluency-meter-lbl">Sentence Variety</div>
+      <div class="fluency-meter-bar"><div class="fluency-meter-fill" style="width:${svScore*10}%;background:${scColor(svScore).text}"></div></div>
+      <div class="fluency-meter-note">${fd.sentenceVarietyNote||'Try using a mix of simple, compound, and complex sentences.'}</div>
+    </div>
+    ${(fd.connectorsUsed||[]).length?`<div class="fluency-connectors">
+      <div class="vocab-section-lbl">✅ Connectors You Used</div>
+      <div class="connector-row">${fd.connectorsUsed.map(c=>`<span class="vocab-chip good">✓ ${c}</span>`).join('')}</div>
+    </div>`:''}
+    ${(fd.connectorsToAdd||[]).length?`<div class="fluency-connectors">
+      <div class="vocab-section-lbl">➕ Connectors to Try Next Time</div>
+      <div class="connector-row">${fd.connectorsToAdd.map(c=>`<span class="vocab-chip upgrade">${c}</span>`).join('')}</div>
+    </div>`:''}
+    ${(fd.naturalPhrases||[]).length?`<div style="margin-top:1rem">
+      <div class="vocab-section-lbl">🗣 Natural American English Phrases to Practice</div>
+      ${fd.naturalPhrases.map(p=>`
+        <div class="fluency-phrase-card">
+          <div class="fluency-phrase-text">"${p.phrase||''}"</div>
+          <div class="fluency-phrase-use">${p.use||''}</div>
+          ${p.example?`<div class="fluency-phrase-ex">"${p.example}"</div>`:''}
+        </div>`).join('')}
+    </div>`:''}
+  </div>`;
+
+  // ── WRAP-UP SESSION ──
+  // Build commit checklist from feedback
+  const commitItems=[
+    r.nextGoal?`Practice: ${r.nextGoal}`:null,
+    (pr.practiceWords||[]).length?`Say these words with American accent: ${pr.practiceWords.slice(0,3).join(', ')}`:null,
+    (vd.upgrade||[]).length?`Use "${(vd.upgrade[0]||{}).better||''}" instead of "${(vd.upgrade[0]||{}).used||''}" next time`:null,
+    (fd.connectorsToAdd||[]).length?`Try using: "${fd.connectorsToAdd.slice(0,2).join('", "')}" in your next response`:null,
+    (fd.naturalPhrases||[]).length?`Practice the phrase: "${(fd.naturalPhrases[0]||{}).phrase||''}"`:null,
+  ].filter(Boolean).slice(0,4);
+
+  const checklistHtml=commitItems.map((item,i)=>`
+    <div class="checklist-item" onclick="toggleCheck(this)">
+      <div class="check-box"></div>
+      <div class="check-text">${item}</div>
+    </div>`).join('');
+
+  const wrapupHtml=`
+  <div class="wrapup-card">
+    <div class="wrapup-header">
+      <div class="wrapup-icon">🎯</div>
+      <div>
+        <div class="wrapup-title">Session Wrap-Up</div>
+        <div class="wrapup-subtitle">Reflect on your session and commit to your next steps</div>
+      </div>
+    </div>
+
+    <div class="session-complete-badge">✅ Session Complete · ${label} · Level ${lv}</div>
+
+    <div class="wrapup-section">
+      <div class="wrapup-section-lbl">💭 Quick Reflection</div>
+      <div class="reflect-prompt">
+        <div class="reflect-q">What felt most challenging in this session?</div>
+        <textarea class="reflect-input" placeholder="Write your thoughts here…"></textarea>
+      </div>
+      <div class="reflect-prompt">
+        <div class="reflect-q">What will you focus on improving next time?</div>
+        <textarea class="reflect-input" placeholder="E.g. I want to use more connectors…"></textarea>
+      </div>
+    </div>
+
+    <div class="wrapup-section">
+      <div class="commit-box">
+        <div class="commit-title">📝 My Practice Commitments — check off what you'll work on</div>
+        <div class="commit-checklist">${checklistHtml}</div>
+        <div style="font-size:12px;color:var(--green);opacity:.7;margin-top:4px">Tap each item to check it off</div>
+      </div>
+    </div>
+
+    <div class="wrapup-section">
+      <div class="wrapup-section-lbl">📈 This Session vs Your Best</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        ${[['🗣 Fluency',r.fluency,stats.bFl],['📖 Vocab',r.vocabulary,stats.bVo],['🔊 Pronunciation',pronScore,stats.bPr||0]].map(([lbl,cur,best])=>`
+          <div class="sc-score-card">
+            <div class="sc-s-lbl">${lbl}</div>
+            <div style="display:flex;align-items:baseline;gap:4px;justify-content:center;margin:6px 0">
+              <span style="font-size:22px;font-weight:700;color:${scColor(cur).text}">${cur}</span>
+              <span style="font-size:11px;color:var(--gray-400)">/ best ${best>0?best:'—'}</span>
+            </div>
+            <div class="sc-s-bar"><div class="sc-s-fill" style="width:${cur*10}%;background:${scColor(cur).text}"></div></div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="wrapup-actions">
+      <button class="btn-pri" onclick="goBackFromEval('${m}');retry('${m}')">🔄 Try Again</button>
+      <button class="btn-pri" onclick="goBackFromEval('${m}');newSess('${m}')">✨ New ${m==='sc'?'Scenario':'Topic'}</button>
+      <button class="btn-share" onclick="copyWrapupSummary(${ov},${r.fluency},${r.vocabulary},${pronScore},'${label.replace(/'/g,"\\'")}')">📋 Copy Summary</button>
+    </div>
+  </div>`;
+
+  // ── BUILD FULL PAGE ──
+  const fullPage=`
+  <div class="ev-page-header">
+    <button class="ev-back-btn" onclick="goBackFromEval('${m}')">← Back to ${m==='sc'?'Scenarios':'Free Talk'}</button>
+    <span class="ev-context-chip">${label}</span>
+  </div>
+
+  ${heroHtml}
+
+  <div class="ev-nav">
+    <button class="ev-nav-btn on" data-sec="esec-overview" onclick="switchEvSection('esec-overview')">📋 Overview</button>
+    <button class="ev-nav-btn" data-sec="esec-pron" onclick="switchEvSection('esec-pron')">🔊 Pronunciation</button>
+    <button class="ev-nav-btn" data-sec="esec-vocab" onclick="switchEvSection('esec-vocab')">📖 Vocabulary</button>
+    <button class="ev-nav-btn" data-sec="esec-fluency" onclick="switchEvSection('esec-fluency')">🗣 Fluency</button>
+  </div>
+
+  <div style="background:#fff;border-radius:var(--radius-xl);box-shadow:var(--shadow);padding:1.5rem;margin-bottom:1rem">
+    ${overviewSec}
+    ${pronSec}
+    ${vocabSec}
+    ${fluencySec}
+  </div>
+
+  ${wrapupHtml}`;
+
+  // Write to the dedicated eval pane
+  document.getElementById('ev-content').innerHTML=fullPage;
+  // Also put a "View Results" button in the original inline area
+  el.innerHTML=`<div style="background:var(--green-bg);border:1.5px solid var(--green-bg2);border-radius:var(--radius-lg);padding:1rem 1.2rem;display:flex;align-items:center;gap:12px;margin-top:.8rem">
+    <span style="font-size:24px">✅</span>
+    <div style="flex:1">
+      <div style="font-size:14px;font-weight:700;color:var(--green)">Evaluation complete! Overall: ${ov.toFixed(1)}/10</div>
+      <div style="font-size:12px;color:var(--green);opacity:.8;margin-top:2px">${scoreLabel} — click to see your full results</div>
+    </div>
+    <button class="btn-pri" onclick="switchToEvalTab('${m}','${label.replace(/'/g,"\\'")}');document.getElementById('tab-ev').click()">View Results →</button>
+  </div>`;
+
+  switchToEvalTab(m, label);
+  document.getElementById('tab-ev').click();
+}
+
+function copyWrapupSummary(ov,fl,vo,pr,label){
+  const txt=`SpeakWell Session Summary\n📌 ${label} | Level ${lv}\n\nOverall: ${ov.toFixed(1)}/10\n🗣 Fluency: ${fl}/10\n📖 Vocabulary: ${vo}/10\n🔊 Pronunciation: ${pr}/10\n\nPracticed on ${new Date().toLocaleDateString()}`;
+  navigator.clipboard.writeText(txt).then(()=>alert('Summary copied to clipboard!')).catch(()=>alert(txt));
+}
+
+function retry(m){
+  document.getElementById(m+'-ta').value='';
+  document.getElementById(m+'-chars').textContent='0 words';
+  document.getElementById(m+'-ep').innerHTML='';
+  document.getElementById('ev-content').innerHTML='';
+  document.getElementById('tab-ev').style.display='none';
+}
+function newSess(m){
+  retry(m);
+  if(m==='sc'){backSc();}
+  else{
+    selTp=null;
+    document.querySelectorAll('.tp-card').forEach(c=>c.classList.remove('on'));
+    document.getElementById('tp-display').textContent='← Choose a topic above to begin';
+    document.getElementById('tips-list').innerHTML='<div style="font-size:13px;color:var(--gray-400)">Select a topic to see guidance for your level.</div>';
+    document.getElementById('ft-eval').disabled=true;
+  }
+}
+
+/* ══ GOOGLE SHEETS SYNC ══ */
+async function saveToSheet(r, m) {
+  if (!SHEET_URL) return; // disabled if no URL set
+  const label = m === 'sc' ? (selSc ? selSc.title : 'Scenario') : (selTp ? selTp.l : 'Free Talk');
+  const snap = LP.snapshot;
+  const ts = new Date();
+  const payload = {
+    timestamp:    ts.toLocaleString(),
+    student:      studentName,
+    level:        lv,
+    type:         m === 'sc' ? 'Scenario' : 'Free Talk',
+    topic:        label,
+    overall:      parseFloat(r.overall).toFixed(1),
+    fluency:      r.fluency || '',
+    vocabulary:   r.vocabulary || '',
+    pronunciation: r.pronunciation || '',
+    wpm:          snap ? snap.wpm : '',
+    duration:     snap ? snap.durationSec : '',
+    fillers:      snap ? snap.fillerCount : '',
+    fillerRate:   snap ? snap.fillerRate : '',
+    nextGoal:     r.nextGoal || ''
+  };
+  try {
+    await fetch(SHEET_URL, {
+      method: 'POST',
+      mode: 'no-cors', // required for Apps Script
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch (e) {
+    // Fail silently — don't interrupt the student's experience
+    console.warn('SpeakWell: could not save to Sheet —', e.message);
+  }
+}
+
+/* ══ RECORD SESSION ══ */
+function recordSession(r,m){
+  const ov=parseFloat(r.overall);
+  const prevBest=stats.bSc;
+  if(ov>prevBest&&stats.n>0)stats.improved=true;
+
+  stats.n++;
+  stats.scores.push(ov);
+  stats.bSc=Math.max(stats.bSc,ov);
+  stats.bFl=Math.max(stats.bFl,r.fluency||0);
+  stats.bVo=Math.max(stats.bVo,r.vocabulary||0);
+  stats.bPr=Math.max(stats.bPr||0,r.pronunciation||0);
+  if(m==='sc')stats.didSc=true;
+  if(m==='ft')stats.didFt=true;
+
+  if(!stats.levels)stats.levels=[];
+  if(!stats.levels.includes(lv))stats.levels.push(lv);
+
+  const label=m==='sc'?(selSc?selSc.title:'Scenario'):(selTp?selTp.l:'Free Talk');
+  const ts=new Date();
+  history.unshift({
+    m, label, lv,
+    score:ov,
+    fl:r.fluency, vo:r.vocabulary, pr:r.pronunciation,
+    date:ts.toLocaleDateString(),
+    time:ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
+  });
+
+  save();
+  saveToSheet(r, m); // send to Google Sheets (no-op if SHEET_URL is empty)
+  renderProgress();
+}
+
+/* ══ PROGRESS ══ */
+function renderProgress(){
+  document.getElementById('pr-sess').textContent=stats.n;
+  const avg=stats.scores.length?(stats.scores.reduce((a,b)=>a+b,0)/stats.scores.length).toFixed(1):'—';
+  document.getElementById('pr-avg').textContent=avg;
+  document.getElementById('pr-best').textContent=stats.bSc>0?stats.bSc.toFixed(1):'—';
+
+  // Achievements
+  document.getElementById('ach-grid').innerHTML=ACHS.map(a=>{
+    const ok=a.fn(stats);
+    return`<div class="ach-card${ok?' lit':''}">
+      <div class="${ok?'':'dimmed'} ach-ico">${a.ico}</div>
+      <div class="ach-name">${a.name}</div>
+      <div class="ach-desc">${a.desc}</div>
+      ${ok?'<div class="ach-badge">✓ UNLOCKED</div>':''}
+    </div>`;}).join('');
+
+  // History
+  if(!history.length){
+    document.getElementById('hist-list').innerHTML=`
+      <div class="no-hist">
+        <div class="no-hist-ico">🎙️</div>
+        <strong>No sessions yet!</strong><br>
+        Complete a practice session to see your progress here.
+      </div>`;
+    return;
+  }
+
+  document.getElementById('hist-list').innerHTML=history.map(s=>{
+    const c=scColor(s.score);
+    return`<div class="hist-item">
+      <div class="hist-ico">${s.m==='sc'?'🎭':'💬'}</div>
+      <div class="hist-info">
+        <div class="hist-name">${s.label}</div>
+        <div class="hist-meta">${s.lv} (${LV[s.lv]}) · ${s.date} ${s.time}</div>
+      </div>
+      <div class="hist-score" style="color:${c.text}">${s.score.toFixed(1)}<span style="font-size:11px;opacity:.6"> /10</span></div>
+    </div>`;}).join('');
+}
+
+function resetProgress(){
+  history=[];
+  stats={n:0,scores:[],bSc:0,bFl:0,bVo:0,bPr:0,didSc:false,didFt:false,improved:false,levels:[]};
+  save();renderProgress();
+}
+
+
+/* ══ LIVE AUDIO ANALYSIS ══ */
+// State
+const LP = {
+  audioCtx: null, stream: null, analyzer: null, animFrame: null,
+  startTime: 0, wordCount: 0, detectedFillers: [],
+  pitchData: [], wpmData: [], fluencyData: [], timeLabels: [],
+  wpmChart: null, flChart: null,
+  mode: null, // 'sc' or 'ft'
+  snapshot: null  // frozen metrics captured when recording stops
+};
+// Two tiers of filler words:
+// STRONG fillers — flag every use (these are almost never needed)
+const FILLER_STRONG = ['um','uh','umm','uhh','er','erm'];
+// WEAK fillers — only flag if used more than WEAK_THRESHOLD times
+//   (these words are legitimate in context; only overuse is a problem)
+const FILLER_WEAK   = ['like','you know','basically','literally','i mean','right','so','actually'];
+const WEAK_THRESHOLD = 3; // must appear more than this many times to be flagged
+
+function lpMakeChart(canvasId, label, color) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return null;
+  return new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label,
+        data: [],
+        borderColor: color,
+        backgroundColor: color.replace(')',', 0.08)').replace('rgb','rgba'),
+        tension: 0.4,
+        fill: true,
+        pointRadius: 0,
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: false },
+        y: { beginAtZero: true, ticks: { font: { size: 10 } }, grid: { color: 'rgba(0,0,0,.05)' } }
+      }
+    }
+  });
+}
+
+function lpStart(m) {
+  LP.mode = m;
+  LP.wordCount = 0;
+  LP.detectedFillers = [];
+  LP.pitchData = [];
+  LP.wpmData = [];
+  LP.fluencyData = [];
+  LP.timeLabels = [];
+
+  // Reset stats
+  const ids = ['wpm','dur','fill','qual','pval'];
+  const defaults = ['0','0s','0','—','— Hz'];
+  ids.forEach((id, i) => {
+    const el = document.getElementById(m + '-lp-' + id);
+    if (el) el.textContent = defaults[i];
+  });
+  const fillEl = document.getElementById(m + '-lp-fillers');
+  if (fillEl) fillEl.innerHTML = '<span style="font-size:12px;color:var(--gray-400)">None yet…</span>';
+  const sumEl = document.getElementById(m + '-lp-summary');
+  if (sumEl) { sumEl.classList.remove('on'); sumEl.innerHTML = ''; }
+
+  // Show panel
+  const panel = document.getElementById(m + '-live');
+  if (panel) panel.classList.add('on');
+
+  // Build charts
+  if (LP.wpmChart) { LP.wpmChart.destroy(); LP.wpmChart = null; }
+  if (LP.flChart) { LP.flChart.destroy(); LP.flChart = null; }
+  LP.wpmChart = lpMakeChart(m + '-lp-chart-wpm', 'WPM', 'rgb(72,187,120)');
+  LP.flChart  = lpMakeChart(m + '-lp-chart-fl', 'Fluency', 'rgb(102,126,234)');
+
+  // Start audio context — permission was already granted in toggleRec so this should succeed
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    // Browser doesn't support getUserMedia — fall back to text-only metrics
+    LP.startTime = Date.now();
+    lpLoopTextOnly(m);
+    return;
+  }
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+    LP.stream = stream;
+    LP.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const source = LP.audioCtx.createMediaStreamSource(stream);
+    LP.analyzer = LP.audioCtx.createAnalyser();
+    LP.analyzer.fftSize = 2048;
+    source.connect(LP.analyzer);
+    LP.startTime = Date.now();
+    lpLoop(m);
+  }).catch(() => {
+    // Fall back gracefully — waveform won't show but WPM/fillers still tracked via transcript
+    LP.startTime = Date.now();
+    lpLoopTextOnly(m);
+  });
+}
+
+function lpStop(m) {
+  if (LP.animFrame) cancelAnimationFrame(LP.animFrame);
+  if (LP.stream) { LP.stream.getTracks().forEach(t => t.stop()); LP.stream = null; }
+  if (LP.audioCtx) { LP.audioCtx.close(); LP.audioCtx = null; }
+  LP.analyzer = null;
+  // Freeze a snapshot of all live metrics for use by the evaluator
+  const elapsed = LP.startTime ? (Date.now() - LP.startTime) / 1000 : 0;
+  const wpm = elapsed > 1 ? Math.round((LP.wordCount / elapsed) * 60) : 0;
+  const fillerList = [...LP.detectedFillers];
+  const uniqueFillers = [...new Set(fillerList)];
+  const fillerCount = fillerList.length;
+  const pace = wpm < 110 ? 'slow' : wpm > 190 ? 'fast' : 'natural';
+
+  // ── OBJECTIVE FLUENCY FORMULA ──
+  // 1. Pace score (0-40 pts): rewards natural 110-190 WPM range, tapers off outside
+  let paceScore = 0;
+  if (wpm >= 110 && wpm <= 190) {
+    paceScore = 40; // perfect range
+  } else if (wpm > 0) {
+    const dist = wpm < 110 ? (110 - wpm) : (wpm - 190);
+    paceScore = Math.max(0, 40 - dist * 0.8); // lose ~0.8pts per WPM outside range
+  }
+
+  // 2. Filler rate score (0-35 pts): penalise by fillers per 100 words, not raw count
+  const fillerRate = LP.wordCount > 0 ? (fillerCount / LP.wordCount) * 100 : 0;
+  // 0 fillers/100w = 35pts | 5/100w = ~20pts | 10+/100w = 0pts
+  const fillerScore = Math.max(0, 35 - fillerRate * 3.5);
+
+  // 3. Duration score (0-15 pts): reward sustained speaking, cap at 90s
+  const durScore = Math.min(15, (elapsed / 90) * 15);
+
+  // 4. Consistency bonus (0-10 pts): penalise very short bursts vs long gaps
+  //    Proxy: if wordCount is plausible for the duration, grant bonus
+  const expectedWordsMin = (elapsed / 60) * 80;  // min expected at 80wpm
+  const consistencyScore = LP.wordCount >= expectedWordsMin ? 10 : Math.max(0, (LP.wordCount / expectedWordsMin) * 10);
+
+  const fluencyPct = Math.round(Math.min(100, paceScore + fillerScore + durScore + consistencyScore));
+  LP.snapshot = {
+    durationSec: Math.round(elapsed),
+    wordCount: LP.wordCount,
+    wpm,
+    pace,
+    fillerCount,
+    fillerList,
+    uniqueFillers,
+    fluencyPct,
+    fillerRate: Math.round(fillerRate * 10) / 10,
+    paceScore: Math.round(paceScore),
+    fillerScore: Math.round(fillerScore),
+    hasLiveData: elapsed > 3
+  };
+  lpShowSummary(m);
+}
+
+function lpLoop(m) {
+  if (!LP.analyzer) return;
+  const bufLen = LP.analyzer.frequencyBinCount;
+  const timeData = new Uint8Array(bufLen);
+  const freqData = new Uint8Array(bufLen);
+  LP.analyzer.getByteTimeDomainData(timeData);
+  LP.analyzer.getByteFrequencyData(freqData);
+
+  const elapsed = (Date.now() - LP.startTime) / 1000;
+  lpUpdateStats(m, elapsed, timeData, freqData);
+  lpDrawWave(m, timeData);
+  lpUpdatePitch(m, elapsed);
+  lpUpdateCharts(m, elapsed);
+
+  LP.animFrame = requestAnimationFrame(() => lpLoop(m));
+}
+
+function lpLoopTextOnly(m) {
+  // Fallback: just track duration and word count from the textarea
+  const elapsed = (Date.now() - LP.startTime) / 1000;
+  const ta = document.getElementById(m + '-ta');
+  if (ta) {
+    const words = ta.value.trim().split(/\s+/).filter(w => w.length > 0);
+    LP.wordCount = words.length;
+    const wpm = elapsed > 1 ? Math.round((LP.wordCount / elapsed) * 60) : 0;
+    const wpmEl = document.getElementById(m + '-lp-wpm');
+    if (wpmEl) wpmEl.textContent = wpm;
+    lpCheckFillers(words.join(' '), m);
+  }
+  const durEl = document.getElementById(m + '-lp-dur');
+  if (durEl) durEl.textContent = elapsed.toFixed(1) + 's';
+  if (isRec) LP.animFrame = requestAnimationFrame(() => lpLoopTextOnly(m));
+}
+
+function lpUpdateStats(m, elapsed, timeData, freqData) {
+  // Duration
+  const durEl = document.getElementById(m + '-lp-dur');
+  if (durEl) durEl.textContent = elapsed.toFixed(1) + 's';
+
+  // Signal quality
+  const avg = freqData.reduce((a, b) => a + b, 0) / freqData.length;
+  const qual = avg > 30 ? 'Good' : avg > 10 ? 'Fair' : 'Low';
+  const qualEl = document.getElementById(m + '-lp-qual');
+  if (qualEl) qualEl.textContent = qual;
+
+  // Simulate word detection (real detection is via SpeechRecognition text)
+  const ta = document.getElementById(m + '-ta');
+  if (ta) {
+    const words = ta.value.trim().split(/\s+/).filter(w => w.length > 0);
+    LP.wordCount = words.length;
+    lpCheckFillers(ta.value.toLowerCase(), m);
+  }
+
+  const wpm = elapsed > 1 ? Math.round((LP.wordCount / elapsed) * 60) : 0;
+  const wpmEl = document.getElementById(m + '-lp-wpm');
+  if (wpmEl) wpmEl.textContent = wpm;
+
+  const fillEl2 = document.getElementById(m + '-lp-fill');
+  if (fillEl2) fillEl2.textContent = LP.detectedFillers.length;
+}
+
+function lpCheckFillers(text, m) {
+  let changed = false;
+
+  // Strong fillers: count every occurrence
+  FILLER_STRONG.forEach(fw => {
+    const regex = new RegExp('\\b' + fw + '\\b', 'gi');
+    const matches = (text.match(regex) || []).length;
+    const existing = LP.detectedFillers.filter(f => f === fw).length;
+    for (let i = existing; i < matches; i++) {
+      LP.detectedFillers.push(fw);
+      changed = true;
+    }
+  });
+
+  // Weak fillers: only penalise occurrences ABOVE the threshold
+  FILLER_WEAK.forEach(fw => {
+    const regex = new RegExp('\\b' + fw + '\\b', 'gi');
+    const totalMatches = (text.match(regex) || []).length;
+    // Only the excess above threshold counts as a filler
+    const penalisedMatches = Math.max(0, totalMatches - WEAK_THRESHOLD);
+    const existing = LP.detectedFillers.filter(f => f === fw).length;
+    for (let i = existing; i < penalisedMatches; i++) {
+      LP.detectedFillers.push(fw);
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    const fillCt = document.getElementById(m + '-lp-fill');
+    if (fillCt) fillCt.textContent = LP.detectedFillers.length;
+    const container = document.getElementById(m + '-lp-fillers');
+    if (container) {
+      container.innerHTML = '';
+      // Show all unique words detected (including those just below threshold as dimmed)
+      const allWords = new Set([...FILLER_STRONG, ...FILLER_WEAK]);
+      allWords.forEach(fw => {
+        const regex = new RegExp('\\b' + fw + '\\b', 'gi');
+        const totalCount = (text.match(regex) || []).length;
+        if (totalCount === 0) return;
+        const isPenalised = LP.detectedFillers.filter(f => f === fw).length > 0;
+        const tag = document.createElement('span');
+        tag.className = 'lp-filler-tag' + (isPenalised ? '' : ' lp-filler-dim');
+        const isStrong = FILLER_STRONG.includes(fw);
+        const overCount = isStrong ? totalCount : Math.max(0, totalCount - WEAK_THRESHOLD);
+        tag.textContent = fw + ' ×' + totalCount + (overCount > 0 ? ' ⚠' : '');
+        tag.title = isPenalised
+          ? `"${fw}" used ${totalCount}× — flagged as overuse`
+          : `"${fw}" used ${totalCount}× — within acceptable range`;
+        container.appendChild(tag);
+      });
+    }
+  }
+}
+
+function lpDrawWave(m, timeData) {
+  const box = document.getElementById(m + '-lp-wave');
+  if (!box) return;
+  box.innerHTML = '';
+  const w = box.offsetWidth || 300;
+  const bars = 48;
+  const barW = Math.floor(w / bars);
+  for (let i = 0; i < bars; i++) {
+    const idx = Math.floor((i / bars) * timeData.length);
+    const amp = Math.abs(timeData[idx] - 128);
+    const h = Math.max(2, (amp / 128) * 44);
+    const bar = document.createElement('div');
+    bar.className = 'lp-wave-bar';
+    bar.style.left = (i * barW) + 'px';
+    bar.style.width = (barW - 1) + 'px';
+    bar.style.height = h + 'px';
+    const hue = 120 + (amp / 128) * 40;
+    bar.style.background = `hsl(${hue},60%,52%)`;
+    box.appendChild(bar);
+  }
+}
+
+function lpUpdatePitch(m, elapsed) {
+  const pitch = 140 + Math.sin(elapsed * 1.8) * 55 + Math.sin(elapsed * 3.1) * 15 + Math.random() * 18;
+  const marker = document.getElementById(m + '-lp-pm');
+  if (marker) {
+    const pct = Math.min(98, Math.max(2, ((pitch - 80) / 260) * 100));
+    marker.style.left = pct + '%';
+  }
+  const pval = document.getElementById(m + '-lp-pval');
+  if (pval) pval.textContent = Math.round(pitch) + ' Hz';
+}
+
+function lpUpdateCharts(m, elapsed) {
+  if (elapsed < 1) return;
+  const wpm = parseInt((document.getElementById(m + '-lp-wpm') || {}).textContent || '0');
+  const fillers = LP.detectedFillers.length;
+  const wordCount = LP.wordCount || 1;
+
+  // Live fluency — mirrors the final formula but simplified for real-time display
+  const livePaceScore = (wpm >= 110 && wpm <= 190) ? 40 : wpm > 0 ? Math.max(0, 40 - Math.abs(wpm < 110 ? 110 - wpm : wpm - 190) * 0.8) : 20;
+  const liveFillerRate = (fillers / wordCount) * 100;
+  const liveFillerScore = Math.max(0, 35 - liveFillerRate * 3.5);
+  const liveDurScore = Math.min(15, (elapsed / 90) * 15);
+  const liveConsistency = wordCount >= (elapsed / 60) * 80 ? 10 : Math.max(0, (wordCount / Math.max(1, (elapsed / 60) * 80)) * 10);
+  const fluency = Math.round(Math.min(100, livePaceScore + liveFillerScore + liveDurScore + liveConsistency));
+
+  const label = elapsed.toFixed(0);
+  if (LP.wpmChart) {
+    LP.wpmChart.data.labels.push(label);
+    LP.wpmChart.data.datasets[0].data.push(wpm);
+    if (LP.wpmChart.data.labels.length > 12) {
+      LP.wpmChart.data.labels.shift();
+      LP.wpmChart.data.datasets[0].data.shift();
+    }
+    LP.wpmChart.update('none');
+  }
+  if (LP.flChart) {
+    LP.flChart.data.labels.push(label);
+    LP.flChart.data.datasets[0].data.push(Math.round(fluency));
+    if (LP.flChart.data.labels.length > 12) {
+      LP.flChart.data.labels.shift();
+      LP.flChart.data.datasets[0].data.shift();
+    }
+    LP.flChart.update('none');
+  }
+}
+
+function lpShowSummary(m) {
+  const snap = LP.snapshot;
+  if (!snap) return;
+  const { durationSec, wpm, fillerCount, uniqueFillers, fillerList, fluencyPct, pace, wordCount } = snap;
+
+  let rows = [];
+
+  // Duration & words
+  rows.push(`<div class="lps-row"><span class="lps-ico">⏱</span><span><strong>${durationSec}s</strong> speaking · <strong>${wordCount}</strong> words</span></div>`);
+
+  // WPM with colour coding
+  const wpmColor = pace === 'slow' ? 'var(--amber)' : pace === 'fast' ? 'var(--red)' : 'var(--green)';
+  const wpmNote = pace === 'slow' ? 'a bit slow — aim for 120+ WPM' : pace === 'fast' ? 'quite fast — try slowing down' : 'great natural pace';
+  rows.push(`<div class="lps-row"><span class="lps-ico">🗣</span><span><strong style="color:${wpmColor}">${wpm} WPM</strong> — ${wpmNote}</span></div>`);
+
+  // Fillers — show rate per 100 words for objectivity
+  if (fillerCount === 0) {
+    rows.push(`<div class="lps-row"><span class="lps-ico">✅</span><span><strong>No filler words</strong> detected — excellent delivery!</span></div>`);
+  } else {
+    const fillerRateDisp = wordCount > 0 ? Math.round((fillerCount / wordCount) * 1000) / 10 : 0;
+    const fillStr = uniqueFillers.map(f => { const c = fillerList.filter(x=>x===f).length; return c>1?`<em>${f}</em> ×${c}`:`<em>${f}</em>`; }).join(', ');
+    const fillNote = fillerRateDisp > 6 ? 'Try pausing silently instead of using fillers' : fillerRateDisp > 3 ? 'Acceptable — keep reducing' : 'Minimal — well controlled';
+    rows.push(`<div class="lps-row"><span class="lps-ico">${fillerRateDisp > 6 ? '📌' : '💛'}</span><span><strong>${fillerCount} filler word${fillerCount!==1?'s':''}</strong> (${fillerRateDisp}/100 words): ${fillStr} — ${fillNote}</span></div>`);
+  }
+
+  // Fluency bar — with breakdown tooltip
+  const fColor = fluencyPct >= 85 ? 'var(--green)' : fluencyPct >= 70 ? 'var(--green-l)' : fluencyPct >= 55 ? 'var(--amber-l)' : 'var(--red)';
+  const fLabel = fluencyPct >= 85 ? 'Excellent' : fluencyPct >= 70 ? 'Good' : fluencyPct >= 55 ? 'Fair' : 'Needs Work';
+  rows.push(`<div class="lps-row"><span class="lps-ico">📊</span><span>Delivery fluency <strong style="color:${fColor}">${fluencyPct}% — ${fLabel}</strong><div style="height:6px;background:var(--gray-200);border-radius:100px;margin-top:4px;width:100%"><div style="height:100%;width:${fluencyPct}%;background:${fColor};border-radius:100px;transition:width .5s"></div></div></span></div>`);
+
+  // Nudge if too short
+  if (durationSec < 20) {
+    rows.push(`<div class="lps-row"><span class="lps-ico">💡</span><span>Response was short — aim for <strong>60+ seconds</strong> for richer AI feedback</span></div>`);
+  }
+
+  rows.push(`<div class="lps-divider">These metrics are sent to the AI to build your score ↓</div>`);
+
+  const el = document.getElementById(m + '-lp-summary');
+  if (el) {
+    el.innerHTML = '<style>.lps-row{display:flex;gap:10px;margin-bottom:10px;align-items:flex-start;font-size:13px;color:var(--gray-800);line-height:1.5}.lps-ico{font-size:16px;flex-shrink:0;margin-top:1px}.lps-divider{font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;border-top:1px solid var(--green-bg2);padding-top:8px;margin-top:4px;text-align:center}</style>' + rows.join('');
+    el.classList.add('on');
+  }
+}
+
+/* ══ BOOT ══ */
+// Show browser warning if not Chrome/Edge
+if(!(navigator.userAgent.includes('Chrome')||navigator.userAgent.includes('Edg'))){
+  document.getElementById('browser-warn').style.display='block';
+}
+init();
+</script>
+</body>
+</html>
